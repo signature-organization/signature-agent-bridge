@@ -20,6 +20,10 @@ On September 24, 2026, the explicit live smoke test passed on macOS arm64 using 
 
 The test uses stdin for prompts. It does not extract credentials, alter the Claude client, or call a private provider endpoint.
 
+## Native Code plugin installation
+
+The official Claude Code CLI successfully added this public GitHub marketplace and installed `signature-agent-bridge@signature-organization` into an isolated local configuration. Both the marketplace and plugin metadata passed the official plugin validator. The installed plugin exposed its configured MCP server and skill.
+
 ## What remains host-specific
 
 The MCPB manifest and archive are validated with Anthropic's official tooling. The packaged native executable is tested through a real stdio MCP client in a clean working directory. Platform builds and package smoke tests run separately in CI.

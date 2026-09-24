@@ -1,0 +1,21 @@
+{
+  "code-workflow": {
+    "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Agent"],
+    "timeoutMs": 900000,
+    "maxOutputBytes": 4000000,
+    "maxTurns": 150,
+    "maxSubagents": 4,
+    "agents": {
+      "planner": {
+        "description": "Inspect a project and produce a focused implementation plan.",
+        "prompt": "Read the supplied project. Identify the smallest complete change, relevant tests, and risks. Return a plan with exact file paths. Do not modify files.",
+        "tools": ["Read", "Glob", "Grep"]
+      },
+      "reviewer": {
+        "description": "Independently review the current changes for consequential defects.",
+        "prompt": "Inspect the supplied project and its current changes. Report concrete correctness, security, or regression findings with file paths, evidence, and suggested validation. Do not modify files.",
+        "tools": ["Read", "Glob", "Grep"]
+      }
+    }
+  }
+}

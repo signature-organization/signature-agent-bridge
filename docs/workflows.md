@@ -2,6 +2,8 @@
 
 [README](../README.md) · [Console tour](dashboard.md) · [API](api.md)
 
+For a complete development example, follow [Advanced Claude Code workflows](advanced-workflows.md). For a single delegated job, see [Launch and observe native subagents](subagents.md).
+
 ## What a template is for
 
 A template is a reusable, ordered sequence of prompts. It names the inputs supplied for each run, the execution profile used by each step, and any earlier result that the next step needs.

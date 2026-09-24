@@ -20,6 +20,9 @@ import { readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import assert from "node:assert/strict";
+import { parseConfig } from "../src/config.js";
+import { QueueStore } from "../src/store.js";
+import { Workflows } from "../src/workflows.js";
 const files = execFileSync(
   "git",
   ["ls-files", "--cached", "--others", "--exclude-standard"],
@@ -28,6 +31,26 @@ const files = execFileSync(
   .trim()
   .split("\n");
 const read = (path: string) => readFileSync(path, "utf8");
+// Documentation examples use the production validators so schema and reference
+// changes cannot silently leave installation instructions with unusable templates.
+const exampleConfig = parseConfig({
+  dataDir: resolve("work/example-state"),
+  workspace: resolve("work/example-jobs"),
+  claudePath: process.execPath,
+  profiles: {
+    default: {},
+    ...JSON.parse(read("examples/workflow-profiles.json")),
+  },
+  workflows: [
+    JSON.parse(read("examples/workflow-templates/advanced-development.json")),
+  ],
+});
+const exampleStore = new QueueStore(":memory:");
+try {
+  new Workflows(exampleStore, exampleConfig.workflows);
+} finally {
+  exampleStore.close();
+}
 const version = JSON.parse(read("package.json")).version;
 for (const file of [
   "integrations/desktop/manifest.json",
@@ -98,5 +121,5 @@ const privatePaths = [
 for (const path of privatePaths)
   execFileSync("git", ["check-ignore", "--quiet", path]);
 console.log(
-  "Repository notices, documentation links, versions, OpenAPI coverage, and private-file exclusions passed.",
+  "Repository notices, documentation links and examples, versions, OpenAPI coverage, and private-file exclusions passed.",
 );

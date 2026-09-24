@@ -31,6 +31,8 @@ These are tool-selection controls, not an OS sandbox. Bash can perform arbitrary
 
 ## Bridge tokens
 
+See [Get your bridge token](tokens.md) for exact file locations, clipboard commands, client creation, and REST/SSE examples.
+
 The owner token is stored in `owner.token` with private file permissions on platforms that support them. Scoped client tokens are generated through the console or CLI, returned once, and stored in the database as hashes.
 
 Scopes are `read`, `submit`, `control`, and `workflows`. Non-owner tokens are restricted to their principal's jobs and assigned profiles. Template administration, service controls, host leases, and channel claims require the owner.

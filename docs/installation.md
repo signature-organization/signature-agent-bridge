@@ -10,7 +10,7 @@
 - Permission to install a local extension or plugin under your organization's policy.
 - Git Bash on Windows for the Code plugin bootstrap. Desktop's binary extension does not require Bash for startup.
 
-The release executable includes Node.js. There is no separate daemon installation and no API key to enter. Do not export `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, a custom `ANTHROPIC_BASE_URL`, or a third-party provider flag in the bridge's environment.
+Release packages include their Node.js runtime. There is no separate daemon installation and no API key to enter. Do not export `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, a custom `ANTHROPIC_BASE_URL`, or a third-party provider flag in the bridge's environment.
 
 ## Claude Code
 
@@ -56,6 +56,8 @@ Ask:
 
 Open the returned address, normally `http://127.0.0.1:8766`. Read `owner.token` from your local data directory and paste it into the connection screen. Do not paste this token into a Claude conversation.
 
+The token file appears when the listener first starts successfully. Follow [Get your bridge token](tokens.md) for exact clipboard commands, creating a scoped application token, and authenticating REST/SSE requests.
+
 ![Connect to the local console](../assets/screenshots/connect-desktop.png)
 
 | OS      | Data directory                                             |
@@ -69,6 +71,8 @@ If you use a portable executable, `signature-agent-bridge panel` opens the brows
 ## Portable CLI
 
 Download the matching `.tar.gz` release archive, verify it against `SHA256SUMS`, and extract it to a directory you control. On macOS/Linux, run `./signature-agent-bridge`; on Windows, run `.\signature-agent-bridge.exe`.
+
+Keep the extracted folder together. Intel Mac packages include a launcher and a sibling `runtime/` directory; moving only the launcher breaks startup. Other platforms use a single executable. Neither layout requires a separate Node.js installation.
 
 ```sh
 ./signature-agent-bridge init

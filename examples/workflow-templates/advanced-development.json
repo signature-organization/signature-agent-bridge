@@ -1,0 +1,32 @@
+{
+  "id": "advanced-development",
+  "description": "Plan, implement, independently review, repair findings, and verify a change in a local project.",
+  "inputs": ["projectDir", "objective"],
+  "steps": [
+    {
+      "id": "plan",
+      "profile": "code-workflow",
+      "prompt": "Project: {{input.projectDir}}\nObjective: {{input.objective}}\nUse Agent to delegate project inspection and planning to the planner subagent. Work in the explicitly supplied project; preserve existing changes. Return a concise plan with exact file paths and the project's real validation commands."
+    },
+    {
+      "id": "implement",
+      "profile": "code-workflow",
+      "prompt": "Project: {{input.projectDir}}\nObjective: {{input.objective}}\nPlan:\n{{steps.plan}}\nImplement the smallest complete change in that project. Read its instructions and files first. Preserve unrelated work. Run the relevant tests. Return changed files, behavior, and evidence. Leave changes uncommitted for the user to review."
+    },
+    {
+      "id": "review",
+      "profile": "code-workflow",
+      "prompt": "Project: {{input.projectDir}}\nObjective: {{input.objective}}\nImplementation report:\n{{steps.implement}}\nUse Agent to delegate an independent review to the reviewer subagent. Inspect actual files and changes. Return concrete findings and their consequences, or explain what was checked if no actionable issue is found."
+    },
+    {
+      "id": "repair",
+      "profile": "code-workflow",
+      "prompt": "Project: {{input.projectDir}}\nObjective: {{input.objective}}\nReview:\n{{steps.review}}\nInvestigate each finding against the actual code. Correct substantiated defects and run relevant regression checks. If no change is needed, explain why. Preserve unrelated changes and leave the result uncommitted."
+    },
+    {
+      "id": "verify",
+      "profile": "code-workflow",
+      "prompt": "Project: {{input.projectDir}}\nObjective: {{input.objective}}\nRepair report:\n{{steps.repair}}\nRun the project's documented checks and inspect the final diff. Report changes, exact validation results, and unresolved limitations. Leave the files ready for the user to review. Do not claim tests passed unless you observed their result."
+    }
+  ]
+}

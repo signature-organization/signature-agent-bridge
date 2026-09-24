@@ -109,6 +109,8 @@ Paste the token from `owner.token` in your bridge data directory:
 
 Select **New job**, enter a task, and choose **Queue job**. Open its conversation to inspect progress or send a follow-up. The owner token remains in the browser tab's memory.
 
+[Get your bridge token](docs/tokens.md) includes clipboard commands for macOS, Windows, and Linux, scoped application tokens, API authentication, revocation, and troubleshooting.
+
 [Full installation guide](docs/installation.md) covers verification, updates, portable CLI usage, and troubleshooting.
 
 ## Talk to the API
@@ -148,6 +150,14 @@ Compaction is handled by Claude itself. The bridge records its boundary and cont
 A reported quota rejection pauses dispatch durably. A future reset timestamp enables up to three automatic continuations for a resumable job. If the reset is unknown, the session is unavailable, or recovery cannot be established, the job stays available for operator review. A **retry** starts a new session and can repeat side effects; it is different from a **resume**.
 
 [Execution and recovery](docs/operations.md) · [Workflows and subagents](docs/workflows.md)
+
+## Launch advanced development workflows
+
+Configure the included `code-workflow` profile, register the `advanced-development` template, and launch a repeatable **plan → implement → review → repair → verify** process from Claude, the console, or the API. The planner and reviewer are native Claude Code subagents; the bridge owns the durable sequence and recovery controls.
+
+![Five-stage development workflow and responsibility boundaries](assets/diagrams/advanced-workflow.svg)
+
+[Step-by-step workflow guide](docs/advanced-workflows.md) · [Launch and observe subagents](docs/subagents.md) · [Profile example](examples/workflow-profiles.json) · [Template definition](examples/workflow-templates/advanced-development.json) · [PNG diagram](assets/diagrams/advanced-workflow.png)
 
 ## Explore the console
 

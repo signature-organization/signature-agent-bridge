@@ -1,0 +1,54 @@
+<!--
+Copyright (c) 2026 Signature Management Consultants SLU
+Author: @ancongui (https://github.com/ancongui)
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1090" viewBox="0 0 1440 1090" role="img" aria-labelledby="title description"><title id="title">Who does what: client, bridge, and Claude</title><desc id="description">A client submits a task over REST. The bridge authenticates it, stores the job, and dispatches an owned official Claude Code process. Claude uses its own subscription login, tools, subagents, and context compaction. The bridge stores observations and results, exposes them over SSE, and coordinates pause and resume. Desktop and Code plugins start the bridge and provide management tools; they are not the worker process.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#14756d" stroke-width="1.4"/></marker><marker id="return" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#b97545" stroke-width="1.4"/></marker></defs>
+<rect width="1440" height="1090" rx="20" fill="#f7f9fa"/><g font-family="Arial,Helvetica,sans-serif">
+<text x="42" y="45" font-size="15" fill="#14756d" font-weight="600">Signature Agent Bridge / Responsibility map</text>
+<text x="42" y="92" font-size="33" fill="#203238" font-weight="600">A task moves through three distinct systems.</text>
+<text x="42" y="126" font-size="18" fill="#657780" font-weight="400">The client asks. The bridge coordinates. Claude performs the work using the user's own login.</text>
+<rect x="42" y="163" width="1356" height="84" rx="12" fill="#edf3f5" stroke="#dbe6e8"/>
+<text x="65" y="194" font-size="17" fill="#203238" font-weight="600">Before a task runs</text>
+<text x="65" y="223" font-size="16" fill="#657780" font-weight="400">Desktop or Code loads the plugin → its MCP adapter starts or discovers the local bridge → management tools become available.</text>
+<rect x="42" y="270" width="374" height="660" rx="18" fill="#eef3f7" stroke="#dce5ea"/>
+<rect x="510" y="270" width="420" height="660" rx="18" fill="#e8f3ee" stroke="#d0e2d9"/>
+<rect x="1024" y="270" width="374" height="660" rx="18" fill="#f6eee7" stroke="#e9dccf"/>
+<text x="66" y="309" font-size="24" fill="#203238" font-weight="600">Client / caller</text>
+<text x="66" y="339" font-size="15" fill="#657780" font-weight="400">Your app, script, or web console</text>
+<text x="534" y="309" font-size="24" fill="#14756d" font-weight="600">Signature Agent Bridge</text>
+<text x="534" y="339" font-size="15" fill="#657780" font-weight="400">A local service owned by this user</text>
+<text x="1048" y="309" font-size="24" fill="#9a6138" font-weight="600">Claude runtime</text>
+<text x="1048" y="339" font-size="15" fill="#657780" font-weight="400">The official Claude Code executable</text>
+<rect x="65" y="366" width="328" height="108" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="88" cy="395" r="5" fill="#14756d"/><text x="104" y="402" font-size="19" fill="#203238" font-weight="600">1. Submit a request</text><text x="87" y="436" font-size="15" fill="#657780" font-weight="400">Prompt, execution profile, and mode</text><text x="87" y="461" font-size="15" fill="#657780" font-weight="400">Bearer token + idempotency key</text>
+<rect x="534" y="366" width="372" height="108" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="557" cy="395" r="5" fill="#14756d"/><text x="573" y="402" font-size="19" fill="#203238" font-weight="600">2. Accept and record</text><text x="556" y="436" font-size="15" fill="#657780" font-weight="400">Validate the caller and allowed profile</text><text x="556" y="461" font-size="15" fill="#657780" font-weight="400">Commit the job and event to SQLite</text>
+<rect x="1048" y="366" width="328" height="108" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="1071" cy="395" r="5" fill="#b97545"/><text x="1087" y="402" font-size="19" fill="#203238" font-weight="600">4. Execute the task</text><text x="1070" y="436" font-size="15" fill="#657780" font-weight="400">Use the user's subscription login</text><text x="1070" y="461" font-size="15" fill="#657780" font-weight="400">Run the model loop and allowed tools</text>
+<path d="M393 421H530" stroke="#14756d" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/><text x="435" y="403" font-size="13" fill="#14756d" font-weight="600">REST</text>
+<rect x="534" y="516" width="372" height="108" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="557" cy="545" r="5" fill="#14756d"/><text x="573" y="552" font-size="19" fill="#203238" font-weight="600">3. Dispatch one owned attempt</text><text x="556" y="586" font-size="15" fill="#657780" font-weight="400">Claim the job with an exclusive fence</text><text x="556" y="611" font-size="15" fill="#657780" font-weight="400">Start Claude, or resume its session</text>
+<path d="M906 562H990V421H1044" stroke="#14756d" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/><text x="946" y="544" font-size="13" fill="#14756d" font-weight="600">CLI</text>
+<rect x="1048" y="516" width="328" height="133" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="1071" cy="545" r="5" fill="#b97545"/><text x="1087" y="552" font-size="19" fill="#203238" font-weight="600">Claude manages its context</text><text x="1070" y="586" font-size="15" fill="#657780" font-weight="400">Tool calls and native subagents</text><text x="1070" y="611" font-size="15" fill="#657780" font-weight="400">Automatic conversation compaction</text><text x="1070" y="636" font-size="15" fill="#657780" font-weight="400">Structured progress and limit events</text>
+<rect x="65" y="681" width="328" height="133" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="88" cy="710" r="5" fill="#14756d"/><text x="104" y="717" font-size="19" fill="#203238" font-weight="600">7. Observe and respond</text><text x="87" y="751" font-size="15" fill="#657780" font-weight="400">Receive progress, states, and results</text><text x="87" y="776" font-size="15" fill="#657780" font-weight="400">Send a follow-up, pause, or cancel</text><text x="87" y="801" font-size="15" fill="#657780" font-weight="400">Refresh state after an expired cursor</text>
+<rect x="534" y="681" width="372" height="133" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="557" cy="710" r="5" fill="#14756d"/><text x="573" y="717" font-size="19" fill="#203238" font-weight="600">6. Persist and publish</text><text x="556" y="751" font-size="15" fill="#657780" font-weight="400">Store results and execution events</text><text x="556" y="776" font-size="15" fill="#657780" font-weight="400">Enforce workflow and quota gates</text><text x="556" y="801" font-size="15" fill="#657780" font-weight="400">Stream updates to authorized callers</text>
+<rect x="1048" y="706" width="328" height="108" rx="12" fill="#fff" stroke="#d8e5e6"/><circle cx="1071" cy="735" r="5" fill="#b97545"/><text x="1087" y="742" font-size="19" fill="#203238" font-weight="600">5. Return observations</text><text x="1070" y="776" font-size="15" fill="#657780" font-weight="400">Output + session ID + final status</text><text x="1070" y="801" font-size="15" fill="#657780" font-weight="400">The provider reports usage limits</text>
+<path d="M1048 774H910" stroke="#b97545" stroke-width="2.5" fill="none" marker-end="url(#return)"/><text x="948" y="754" font-size="12" fill="#9a6138" font-weight="600">Events</text>
+<path d="M534 774H397" stroke="#b97545" stroke-width="2.5" fill="none" marker-end="url(#return)"/><text x="450" y="754" font-size="13" fill="#9a6138" font-weight="600">SSE</text>
+<text x="66" y="883" font-size="14" fill="#536e7d" font-weight="600">The client does not run the model.</text>
+<text x="534" y="883" font-size="14" fill="#14756d" font-weight="600">The bridge does not replace Claude.</text>
+<text x="1048" y="883" font-size="14" fill="#9a6138" font-weight="600">Claude does not own the job queue.</text>
+<rect x="42" y="953" width="1356" height="73" rx="12" fill="#fff" stroke="#dbe6e8"/>
+<text x="64" y="981" font-size="17" fill="#203238" font-weight="600">Two native integration paths</text>
+<text x="64" y="1007" font-size="15" fill="#657780" font-weight="400">Automatic jobs use a dedicated Claude Code process. Optional channel jobs are explicitly claimed and completed in the current host conversation.</text>
+<path d="M42 1049H1398" stroke="#dbe6e7"/><text x="42" y="1074" font-size="12" fill="#657780" font-weight="400">Signature Management Consultants SLU · Apache 2.0</text><text x="1185" y="1074" font-size="12" fill="#14756d" font-weight="400">One user. Local ownership.</text>
+</g></svg>

@@ -1,0 +1,29 @@
+<!--
+Copyright (c) 2026 Signature Management Consultants SLU
+Author: @ancongui (https://github.com/ancongui)
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="730" viewBox="0 0 1280 730" role="img" aria-labelledby="title description"><title id="title">Two directions. One consistent record.</title><desc id="description">HTTP carries commands into the bridge. Server-Sent Events carry durable updates back.</desc><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#14756d" stroke-width="1.4"/></marker><marker id="arrowCopper" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto"><path d="M0 0 7 3.5 0 7" fill="none" stroke="#b97545" stroke-width="1.4"/></marker></defs><rect width="1280" height="730" rx="20" fill="#f7f9fa"/><g font-family="Arial,Helvetica,sans-serif"><text x="42" y="50" fill="#14756d" font-size="15" font-weight="600">Signature Agent Bridge</text><text x="42" y="96" fill="#203238" font-size="31" font-weight="600">Two directions. One consistent record.</text><text x="42" y="128" fill="#657780" font-size="16" font-weight="400">HTTP carries commands into the bridge. Server-Sent Events carry durable updates back.</text><text x="60" y="200" fill="#203238" font-size="19" font-weight="600">Client</text><path d="M90 220V636" stroke="#d7e3e6" stroke-width="2" stroke-dasharray="4 6"/><text x="375" y="200" fill="#203238" font-size="19" font-weight="600">Bridge API</text><path d="M405 220V636" stroke="#d7e3e6" stroke-width="2" stroke-dasharray="4 6"/><text x="725" y="200" fill="#203238" font-size="19" font-weight="600">SQLite queue</text><path d="M755 220V636" stroke="#d7e3e6" stroke-width="2" stroke-dasharray="4 6"/><text x="1105" y="200" fill="#203238" font-size="19" font-weight="600">Claude</text><path d="M1135 220V636" stroke="#d7e3e6" stroke-width="2" stroke-dasharray="4 6"/>
+<path d="M90 255H405" fill="none" stroke="#14756d" stroke-width="2.5" marker-end="url(#arrow)"/><text x="122" y="242" fill="#657780" font-size="16" font-weight="400">POST /v1/jobs + idempotency key</text>
+<path d="M405 305H755" fill="none" stroke="#14756d" stroke-width="2.5" marker-end="url(#arrow)"/><text x="442" y="290" fill="#657780" font-size="16" font-weight="400">Transaction: job + event + key</text>
+<path d="M405 355H90" fill="none" stroke="#b97545" stroke-width="2.5" marker-end="url(#arrowCopper)"/><text x="128" y="342" fill="#9b663d" font-size="16" font-weight="400">202 Accepted · job ID</text>
+<path d="M755 402H1135" fill="none" stroke="#14756d" stroke-width="2.5" marker-end="url(#arrow)"/><text x="816" y="388" fill="#657780" font-size="16" font-weight="400">Claim attempt · start / resume</text>
+<path d="M1135 448H755" fill="none" stroke="#b97545" stroke-width="2.5" marker-end="url(#arrowCopper)"/><text x="810" y="435" fill="#9b663d" font-size="16" font-weight="400">Progress · compaction · result</text>
+<path d="M755 500H405" fill="none" stroke="#b97545" stroke-width="2.5" marker-end="url(#arrowCopper)"/><text x="456" y="486" fill="#9b663d" font-size="16" font-weight="400">Committed event, stable cursor</text>
+<path d="M405 551H90" fill="none" stroke="#b97545" stroke-width="2.5" marker-end="url(#arrowCopper)"/><text x="123" y="535" fill="#9b663d" font-size="16" font-weight="400">GET /v1/events → SSE stream</text>
+<path d="M90 606H405" fill="none" stroke="#14756d" stroke-width="2.5" marker-end="url(#arrow)"/><text x="126" y="592" fill="#657780" font-size="16" font-weight="400">POST follow-up / pause / resume</text>
+<text x="801" y="589" fill="#14756d" font-size="16" font-weight="600">Reconnect with Last-Event-ID.</text>
+<text x="801" y="616" fill="#657780" font-size="16" font-weight="400">Expired cursor → refresh job state.</text>
+<path d="M42 682H1238" stroke="#dbe6e7"/><text x="42" y="708" fill="#657780" font-size="12" font-weight="400">Signature Management Consultants SLU · Apache 2.0</text><text x="1080" y="708" fill="#14756d" font-size="12" font-weight="400">Local by design</text></g></svg>

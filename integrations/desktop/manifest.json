@@ -1,0 +1,35 @@
+{
+  "manifest_version": "0.3",
+  "name": "signature-agent-bridge",
+  "display_name": "Signature Agent Bridge",
+  "version": "0.1.0",
+  "description": "Local job orchestration, workflows, and a diagnostic dashboard powered by your Claude Code subscription.",
+  "long_description": "The extension starts a shared local listener with durable jobs, authenticated REST/SSE, workflows, and native bypass execution through your own installed Claude Code login. Claude Code 2.1.260 or later and a subscription login are required. No API key is collected. Data stays in your operating system's user data directory.",
+  "author": {
+    "name": "Signature Management Consultants SLU · @ancongui",
+    "url": "https://github.com/ancongui"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/signature-organization/signature-agent-bridge"
+  },
+  "homepage": "https://github.com/signature-organization/signature-agent-bridge",
+  "documentation": "https://github.com/signature-organization/signature-agent-bridge/blob/main/docs/installation.md",
+  "support": "https://github.com/signature-organization/signature-agent-bridge/issues",
+  "icon": "assets/logo.png",
+  "screenshots": ["assets/dashboard.png"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/signature-agent-bridge",
+    "mcp_config": {
+      "command": "${__dirname}/server/signature-agent-bridge",
+      "args": ["mcp"]
+    }
+  },
+  "tools_generated": true,
+  "keywords": ["orchestration", "workflows", "local", "queue", "sse"],
+  "license": "Apache-2.0",
+  "compatibility": {
+    "platforms": ["darwin", "win32"]
+  }
+}

@@ -1,0 +1,1888 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Signature Agent Bridge API",
+    "version": "0.1.0",
+    "description": "Authenticated local orchestration with REST commands and durable SSE notifications. Copyright 2026 Signature Management Consultants SLU. Author @ancongui.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8766"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/status": {
+      "get": {
+        "operationId": "get_v1_status",
+        "summary": "GET /v1/status",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs": {
+      "post": {
+        "operationId": "post_v1_jobs",
+        "summary": "POST /v1/jobs",
+        "description": "Requires submit authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "submit",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted for asynchronous execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobInput"
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_v1_jobs",
+        "summary": "GET /v1/jobs",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "asc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}": {
+      "get": {
+        "operationId": "get_v1_jobs_id",
+        "summary": "GET /v1/jobs/{id}",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/attempts": {
+      "get": {
+        "operationId": "get_v1_jobs_id_attempts",
+        "summary": "GET /v1/jobs/{id}/attempts",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/pause": {
+      "post": {
+        "operationId": "post_v1_jobs_id_pause",
+        "summary": "POST /v1/jobs/{id}/pause",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/resume": {
+      "post": {
+        "operationId": "post_v1_jobs_id_resume",
+        "summary": "POST /v1/jobs/{id}/resume",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/result": {
+      "get": {
+        "operationId": "get_v1_jobs_id_result",
+        "summary": "GET /v1/jobs/{id}/result",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Job is not terminal yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/messages": {
+      "get": {
+        "operationId": "get_v1_jobs_id_messages",
+        "summary": "GET /v1/jobs/{id}/messages",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v1_jobs_id_messages",
+        "summary": "POST /v1/jobs/{id}/messages",
+        "description": "Requires submit authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "submit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted for asynchronous execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100000
+                  }
+                },
+                "required": ["text"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "post_v1_jobs_id_cancel",
+        "summary": "POST /v1/jobs/{id}/cancel",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{id}/retry": {
+      "post": {
+        "operationId": "post_v1_jobs_id_retry",
+        "summary": "POST /v1/jobs/{id}/retry",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted for asynchronous execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/events": {
+      "get": {
+        "operationId": "get_v1_events",
+        "summary": "GET /v1/events",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Events"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Resume after this event; expired cursors return 409."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflow-runs": {
+      "post": {
+        "operationId": "post_v1_workflow-runs",
+        "summary": "POST /v1/workflow-runs",
+        "description": "Requires workflows authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "workflows",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted for asynchronous execution",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "templateId": {
+                    "type": "string"
+                  },
+                  "inputs": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": ["templateId", "inputs"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get_v1_workflow-runs",
+        "summary": "GET /v1/workflow-runs",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflow-runs/{id}": {
+      "get": {
+        "operationId": "get_v1_workflow-runs_id",
+        "summary": "GET /v1/workflow-runs/{id}",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflow-runs/{id}/cancel": {
+      "post": {
+        "operationId": "post_v1_workflow-runs_id_cancel",
+        "summary": "POST /v1/workflow-runs/{id}/cancel",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflow-runs/{id}/pause": {
+      "post": {
+        "operationId": "post_v1_workflow-runs_id_pause",
+        "summary": "POST /v1/workflow-runs/{id}/pause",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workflow-runs/{id}/resume": {
+      "post": {
+        "operationId": "post_v1_workflow-runs_id_resume",
+        "summary": "POST /v1/workflow-runs/{id}/resume",
+        "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Workflows"],
+        "x-required-scope": "control",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/pause": {
+      "post": {
+        "operationId": "post_v1_admin_pause",
+        "summary": "POST /v1/admin/pause",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/resume": {
+      "post": {
+        "operationId": "post_v1_admin_resume",
+        "summary": "POST /v1/admin/resume",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/stop": {
+      "post": {
+        "operationId": "post_v1_admin_stop",
+        "summary": "POST /v1/admin/stop",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/tokens": {
+      "get": {
+        "operationId": "get_v1_admin_tokens",
+        "summary": "GET /v1/admin/tokens",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v1_admin_tokens",
+        "summary": "POST /v1/admin/tokens",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                  },
+                  "profiles": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "scopes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "enum": ["read", "submit", "control", "workflows"]
+                    }
+                  }
+                },
+                "required": ["id", "profiles", "scopes"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/tokens/revoke": {
+      "post": {
+        "operationId": "post_v1_admin_tokens_revoke",
+        "summary": "POST /v1/admin/tokens/revoke",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/hosts/heartbeat": {
+      "post": {
+        "operationId": "post_v1_hosts_heartbeat",
+        "summary": "POST /v1/hosts/heartbeat",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/hosts/disconnect": {
+      "post": {
+        "operationId": "post_v1_hosts_disconnect",
+        "summary": "POST /v1/hosts/disconnect",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  }
+                },
+                "required": ["id"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channel/pending": {
+      "get": {
+        "operationId": "get_v1_channel_pending",
+        "summary": "GET /v1/channel/pending",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channel/claim": {
+      "post": {
+        "operationId": "post_v1_channel_claim",
+        "summary": "POST /v1/channel/claim",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostId": {
+                    "type": "string"
+                  },
+                  "jobId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": ["hostId", "jobId"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/templates": {
+      "get": {
+        "operationId": "get_v1_admin_templates",
+        "summary": "GET /v1/admin/templates",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/admin/templates/{templateId}": {
+      "put": {
+        "operationId": "put_v1_admin_templates_templateId",
+        "summary": "PUT /v1/admin/templates/{templateId}",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Template"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_v1_admin_templates_templateId",
+        "summary": "DELETE /v1/admin/templates/{templateId}",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [
+          {
+            "name": "templateId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channel/progress": {
+      "post": {
+        "operationId": "post_v1_channel_progress",
+        "summary": "POST /v1/channel/progress",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostId": {
+                    "type": "string"
+                  },
+                  "attemptId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fence": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "text": {
+                    "type": "string",
+                    "maxLength": 16000
+                  }
+                },
+                "required": ["hostId", "attemptId", "fence", "text"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channel/complete": {
+      "post": {
+        "operationId": "post_v1_channel_complete",
+        "summary": "POST /v1/channel/complete",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostId": {
+                    "type": "string"
+                  },
+                  "attemptId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fence": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "result": {
+                    "type": "string",
+                    "maxLength": 100000
+                  }
+                },
+                "required": ["hostId", "attemptId", "fence", "result"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/channel/stopped": {
+      "post": {
+        "operationId": "post_v1_channel_stopped",
+        "summary": "POST /v1/channel/stopped",
+        "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Administration"],
+        "x-required-scope": "owner",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hostId": {
+                    "type": "string"
+                  },
+                  "attemptId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fence": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": ["hostId", "attemptId", "fence"],
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "sab_ token"
+      }
+    },
+    "schemas": {
+      "JobInput": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          },
+          "profile": {
+            "default": "default",
+            "type": "string",
+            "pattern": "^[\\w-]{1,64}$"
+          },
+          "mode": {
+            "default": "cli",
+            "type": "string",
+            "enum": ["cli", "channel"]
+          }
+        },
+        "required": ["prompt", "profile", "mode"],
+        "additionalProperties": false
+      },
+      "Template": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+          },
+          "description": {
+            "default": "",
+            "type": "string",
+            "maxLength": 2000
+          },
+          "inputs": {
+            "default": [],
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+            }
+          },
+          "steps": {
+            "minItems": 1,
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                },
+                "prompt": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100000
+                },
+                "profile": {
+                  "default": "default",
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                }
+              },
+              "required": ["id", "prompt", "profile"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["id", "description", "inputs", "steps"],
+        "additionalProperties": false
+      },
+      "Job": {
+        "type": "object",
+        "required": ["id", "prompt", "profile", "mode", "status", "messages"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "profile": {
+            "type": "string"
+          },
+          "mode": {
+            "enum": ["cli", "channel"]
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "pause_requested",
+              "paused",
+              "cancel_requested",
+              "succeeded",
+              "failed",
+              "canceled",
+              "interrupted",
+              "timed_out"
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "result": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "retryAt": {
+            "type": "integer",
+            "description": "Provider retry time in Unix milliseconds"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "pendingMessages": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "compactions": {
+            "type": "integer"
+          },
+          "subagents": {
+            "type": "object"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              }
+            },
+            "required": ["code", "message", "requestId"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["error"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

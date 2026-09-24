@@ -1,0 +1,420 @@
+<!--
+Copyright (c) 2026 Signature Management Consultants SLU
+Author: @ancongui (https://github.com/ancongui)
+SPDX-License-Identifier: Apache-2.0
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Signature Agent Bridge</title>
+    <link rel="stylesheet" href="/app.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <aside class="rail">
+      <a class="wordmark" href="/" aria-label="Signature Agent Bridge home"
+        ><img src="/brand.png" alt="Signature Agent Bridge"
+      /></a>
+      <div class="workspace-label">
+        <span class="workspace-icon">S</span
+        ><span
+          ><strong>Personal workspace</strong><small>Local bridge</small></span
+        ><span class="local-dot"></span>
+      </div>
+      <nav aria-label="Main navigation">
+        <button data-view="jobs" class="selected">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="4" />
+            <path d="M8 9h8M8 13h5M8 17h3" /></svg
+          ><span>Jobs</span><span id="job-count" class="nav-count">0</span>
+        </button>
+        <button data-view="workflows">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="3" width="6" height="6" rx="2" />
+            <rect x="15" y="15" width="6" height="6" rx="2" />
+            <path d="M6 9v6a3 3 0 0 0 3 3h6M9 6h6a3 3 0 0 1 3 3v6" /></svg
+          ><span>Workflows</span>
+        </button>
+        <button data-view="diagnostics">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 12h4l3-7 4 14 3-7h4" />
+            <path d="M4 4v16h16" opacity=".3" /></svg
+          ><span>Diagnostics</span>
+        </button>
+      </nav>
+      <div class="rail-note">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6z" />
+          <path d="m8 12 3 3 5-6" /></svg
+        ><strong>Built around your workspace</strong>
+        <p>Your tasks and conversations stay on this machine.</p>
+      </div>
+      <div class="rail-footer">
+        <div class="connection-row">
+          <span class="status-dot"></span
+          ><span id="connection">Disconnected</span
+          ><span class="version">v0.1.0</span>
+        </div>
+        <button id="logout" hidden>Disconnect session</button>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <p class="breadcrumb">Workspace <span>/</span> Operations</p>
+          <h1 id="view-title">Jobs &amp; conversations</h1>
+          <p id="view-description" class="page-description">
+            Keep every task moving, with the context to pick it up again.
+          </p>
+        </div>
+        <div class="header-actions">
+          <div id="health" class="connection-badge">
+            <span></span>Sign in to connect
+          </div>
+          <button id="new-job" class="primary" hidden>
+            <span aria-hidden="true">＋</span> New job
+          </button>
+        </div>
+      </header>
+      <div id="notice" role="status" aria-live="polite" hidden></div>
+      <section id="login">
+        <div class="intro">
+          <div class="bridge-art" aria-hidden="true">
+            <span class="art-node">You</span><span class="art-link">⇄</span
+            ><span class="art-node agent">Claude</span>
+          </div>
+          <h2>Your ideas.<br />A connected workspace.</h2>
+          <p>
+            Turn requests into manageable work. Follow conversations, coordinate
+            workflows, and stay in control of every execution.
+          </p>
+          <div class="intro-features">
+            <span>Durable jobs</span><span>Live progress</span
+            ><span>Resumable sessions</span>
+          </div>
+        </div>
+        <form id="connect-form">
+          <div class="form-symbol">↗</div>
+          <h2>Connect your bridge</h2>
+          <p>Use your local bridge token to open the operations panel.</p>
+          <label for="token">Bridge token</label
+          ><input
+            id="token"
+            type="password"
+            autocomplete="off"
+            required
+            placeholder="Paste your sab_ token"
+          /><button class="primary">Connect</button>
+          <p class="hint">
+            Find <code>owner.token</code> in your bridge data directory. Run
+            <code>signature-agent-bridge panel</code> to locate it.
+          </p>
+          <div class="privacy-note">
+            The token stays in this tab's memory. Your Claude login is never
+            entered here.
+          </div>
+        </form>
+      </section>
+      <div id="workspace" hidden>
+        <div class="toolbar">
+          <div class="work-summary">
+            <span class="pulse-icon" aria-hidden="true">↗</span>
+            <p id="summary">Loading local state…</p>
+          </div>
+          <div class="dispatch-actions">
+            <button id="pause-all" class="quiet">Pause dispatch</button
+            ><button id="resume-all" class="quiet">Resume dispatch</button
+            ><button
+              id="refresh"
+              class="icon-button"
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 7v5h-5M4 17v-5h5" />
+                <path d="M6 7a7 7 0 0 1 12-1l2 3M4 15l2 3a7 7 0 0 0 12-1" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <section id="jobs-view" class="view">
+          <div class="desk">
+            <section class="queue">
+              <div class="section-heading">
+                <div>
+                  <h2>All jobs</h2>
+                  <p class="section-caption">
+                    A shared queue across your connected tools
+                  </p>
+                </div>
+                <button id="more" class="quiet" hidden>Load more</button>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Task</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody id="jobs"></tbody>
+                </table>
+              </div>
+              <div id="empty" class="empty">
+                <span class="empty-symbol">⇄</span>
+                <h3>A space for your next idea</h3>
+                <p>
+                  Create a job to start an execution. Its progress and
+                  conversation will appear here.
+                </p>
+              </div>
+              <div class="queue-footer">
+                <span class="status-dot"></span>Changes sync automatically
+              </div>
+            </section>
+            <section class="detail" aria-label="Selected job">
+              <div id="selection-empty" class="empty">
+                <span class="empty-symbol">↗</span>
+                <h3>Follow the conversation</h3>
+                <p>
+                  Select a job to see its results, controls, and child tasks.
+                </p>
+              </div>
+              <div id="job-detail" hidden>
+                <div class="section-heading">
+                  <div>
+                    <span class="section-caption">Job details</span>
+                    <h2>Conversation</h2>
+                  </div>
+                  <span id="detail-state" class="pill"></span>
+                </div>
+                <p id="job-meta" class="hint"></p>
+                <div id="job-actions" class="actions"></div>
+                <p id="job-error" class="error" hidden></p>
+                <div id="messages"></div>
+                <form id="message-form">
+                  <label for="followup">Continue this conversation</label
+                  ><textarea
+                    id="followup"
+                    rows="2"
+                    maxlength="100000"
+                    required
+                    placeholder="Add a follow-up or a new direction…"
+                  ></textarea>
+                  <div class="reply-footer">
+                    <span>Uses the same Claude session</span
+                    ><button class="primary">Send follow-up</button>
+                  </div>
+                </form>
+                <div class="child-heading">
+                  <h3>Child tasks</h3>
+                  <span class="section-caption">Native orchestration</span>
+                </div>
+                <ul id="subagents"></ul>
+                <details>
+                  <summary>Attempts and session</summary>
+                  <pre id="attempts"></pre>
+                </details>
+              </div>
+            </section>
+          </div>
+        </section>
+        <section id="workflows-view" class="view" hidden>
+          <div class="workflow-layout">
+            <form id="workflow-form" class="composer">
+              <div class="section-heading"><h2>Start a workflow</h2></div>
+              <p class="section-caption">
+                A repeatable sequence with checkpoints between steps.
+              </p>
+              <label
+                >Template
+                <select id="template"></select></label
+              ><label for="workflow-inputs">Inputs (JSON object)</label
+              ><textarea id="workflow-inputs" rows="5">{}</textarea>
+              <p id="template-help" class="hint"></p>
+              <button class="primary">Start workflow</button>
+            </form>
+            <section class="runs-panel">
+              <h2>Recent runs</h2>
+              <div id="workflow-runs"></div>
+              <div class="template-heading">
+                <div>
+                  <h2>Reusable templates</h2>
+                  <p class="section-caption">
+                    Define the steps once. Start a new run with different
+                    inputs.
+                  </p>
+                </div>
+                <button id="new-template">New template</button>
+              </div>
+              <div id="templates-list"></div>
+            </section>
+          </div>
+        </section>
+        <section id="diagnostics-view" class="view" hidden>
+          <div class="diagnostics-layout">
+            <section class="diagnostic-panel">
+              <h2>Service health</h2>
+              <p class="section-caption">
+                Readiness, connections, and local execution settings.
+              </p>
+              <dl id="health-facts" class="health-facts"></dl>
+              <details>
+                <summary>Technical details</summary>
+                <pre id="diagnostics"></pre>
+              </details>
+            </section>
+            <section class="diagnostic-panel">
+              <h2>Client access</h2>
+              <p class="section-caption">
+                Give each application its own revocable token.
+              </p>
+              <form id="token-form">
+                <label
+                  >Client name
+                  <input
+                    id="client-name"
+                    pattern="[a-zA-Z0-9_-]{1,64}"
+                    required
+                    placeholder="local-app" /></label
+                ><label
+                  >Profiles
+                  <input id="client-profiles" required value="default" /></label
+                ><button class="primary">Create token</button>
+              </form>
+              <pre id="new-token" hidden></pre>
+              <div id="tokens"></div>
+            </section>
+          </div>
+        </section>
+        <section class="activity">
+          <div class="section-heading">
+            <div class="activity-title">
+              <span class="signal-icon" aria-hidden="true">≋</span>
+              <h2>Activity stream</h2>
+              <span id="stream-state" class="stream-label"
+                >Waiting for connection</span
+              >
+            </div>
+            <span class="section-caption">Durable event history</span>
+          </div>
+          <ol id="events"></ol>
+        </section>
+      </div>
+      <footer>
+        <span>© 2026 Signature Management Consultants SLU</span
+        ><span
+          >Apache 2.0 <span class="footer-dot">·</span> Made for local
+          work</span
+        >
+      </footer>
+    </main>
+    <dialog id="job-dialog">
+      <div class="dialog-heading">
+        <h2>Create a job</h2>
+        <button id="close-job" class="icon-button" aria-label="Close">×</button>
+      </div>
+      <form id="job-form">
+        <p class="section-caption">
+          Describe the outcome. The bridge handles execution and progress.
+        </p>
+        <label for="prompt">What should Claude work on?</label
+        ><textarea
+          id="prompt"
+          rows="5"
+          maxlength="100000"
+          required
+          placeholder="Describe the task and the expected result…"
+        ></textarea>
+        <div class="form-row">
+          <label
+            >Profile
+            <select id="profile"></select></label
+          ><label
+            >Execution
+            <select id="mode">
+              <option value="cli">Claude Code worker</option>
+              <option value="channel">Current host conversation</option>
+            </select></label
+          >
+        </div>
+        <p id="job-form-error" class="error" role="alert" hidden></p>
+        <div class="dialog-footer">
+          <span class="hint">Runs with native bypass permissions</span
+          ><button class="primary">Queue job</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="template-dialog">
+      <div class="dialog-heading">
+        <h2>Workflow template</h2>
+        <button
+          id="close-template"
+          class="icon-button"
+          aria-label="Close template"
+        >
+          ×
+        </button>
+      </div>
+      <form id="template-form">
+        <p class="section-caption">
+          Use a template for repeatable work with clear checkpoints, such as
+          research followed by review. Each step starts only after the previous
+          step succeeds.
+        </p>
+        <div class="form-row">
+          <label
+            >Template ID
+            <input
+              id="template-id"
+              pattern="[a-zA-Z0-9_-]{1,64}"
+              required
+              placeholder="research-review" /></label
+          ><label
+            >Input names
+            <input id="template-input-names" placeholder="topic, audience"
+          /></label>
+        </div>
+        <label
+          >Purpose
+          <input
+            id="template-description"
+            maxlength="2000"
+            placeholder="When should this workflow be used?"
+        /></label>
+        <div class="template-step-heading">
+          <h3>Ordered steps</h3>
+          <button id="add-step" type="button">Add step</button>
+        </div>
+        <p class="hint">
+          Use {{input.topic}} for an input and {{steps.research}} for the output
+          of an earlier step. Profiles determine the tools available to each
+          step.
+        </p>
+        <div id="template-steps"></div>
+        <p id="template-error" class="error" role="alert" hidden></p>
+        <div class="dialog-footer">
+          <span class="hint"
+            >Edits affect future runs. Existing runs keep their original
+            definition.</span
+          ><button class="primary">Save template</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

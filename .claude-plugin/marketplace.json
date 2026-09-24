@@ -1,0 +1,24 @@
+{
+  "name": "signature-organization",
+  "owner": {
+    "name": "Signature Management Consultants SLU",
+    "url": "https://github.com/signature-organization"
+  },
+  "metadata": {
+    "description": "Native local orchestration tools from Signature Management Consultants SLU"
+  },
+  "plugins": [
+    {
+      "name": "signature-agent-bridge",
+      "source": "./integrations/claude-code",
+      "description": "Durable jobs, workflows, REST/SSE, and a local dashboard for your Claude subscription.",
+      "version": "0.1.0",
+      "author": {
+        "name": "@ancongui",
+        "url": "https://github.com/ancongui"
+      },
+      "license": "Apache-2.0",
+      "keywords": ["mcp", "orchestration", "sse", "workflows", "local-first"]
+    }
+  ]
+}

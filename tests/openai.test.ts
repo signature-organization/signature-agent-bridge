@@ -28,6 +28,7 @@ let dir: string,
   service: Awaited<ReturnType<typeof startService>>,
   token: string,
   delay: number,
+  readyDelay: number,
   outcome: Outcome;
 const base = {
   model: "bridge/default",
@@ -36,6 +37,7 @@ const base = {
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "bridge-completions-"));
   delay = 10;
+  readyDelay = 0;
   outcome = {
     status: "succeeded",
     result: JSON.stringify({ content: "Hello!", tool_calls: [] }),
@@ -51,7 +53,10 @@ beforeEach(async () => {
     }),
     {
       worker: () => ({
-        ready: async () => ({ ready: true }),
+        ready: async () => {
+          await new Promise((r) => setTimeout(r, readyDelay));
+          return { ready: true };
+        },
         run: async (_input, _emit, signal) => {
           await new Promise<void>((r) => {
             const timer = setTimeout(done, delay);
@@ -259,3 +264,42 @@ it("reports invalid structured output as an error and never emits a fabricated s
   expect(body).toContain("invalid_completion");
   expect(body).not.toContain('"finish_reason":"stop"');
 });
+
+it.each([
+  [false, "quota_exhausted", 429],
+  [true, "quota_exhausted", 429],
+  [false, "operator_pause", 503],
+  [true, "operator_pause", 503],
+] as const)(
+  "retains queued work when the global gate closes after admission (stream=%s, %s)",
+  async (stream, reason, status) => {
+    readyDelay = 200;
+    const body = { ...base, stream };
+    const pending = post(body, { "idempotency-key": "gated" });
+    await expect.poll(() => service.store.list().length).toBe(1);
+    const id = service.store.list()[0]!.id;
+    expect(service.store.get(id).status).toBe("queued");
+    service.scheduler.pause(
+      reason,
+      reason === "quota_exhausted" ? Date.now() + 60000 : undefined,
+    );
+    const response = await pending;
+    const data = await response.text();
+    expect(data).toContain(
+      reason === "quota_exhausted" ? "quota_exhausted" : "execution_paused",
+    );
+    expect(data).toContain(id);
+    if (!stream) {
+      expect(response.status).toBe(status);
+      if (reason === "quota_exhausted")
+        expect(Number(response.headers.get("retry-after"))).toBeGreaterThan(0);
+    }
+    expect(service.store.get(id).status).toBe("queued");
+    service.scheduler.pause(reason);
+    service.scheduler.resume();
+    const resumed = await post(body, { "idempotency-key": "gated" });
+    expect(await resumed.text()).toContain("Hello!");
+    expect(service.store.get(id).status).toBe("succeeded");
+    expect(service.store.list()).toHaveLength(1);
+  },
+);

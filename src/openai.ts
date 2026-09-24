@@ -265,6 +265,13 @@ export function registerOpenAI(
         d.auth.verify(bearer);
         current = d.store.get(job.id, p);
         if (current.status === "succeeded") break;
+        // A global gate can close while this request is still queued, before
+        // the job receives a per-attempt pause. Preserve it for the same-key retry.
+        const gate = d.scheduler.controlState;
+        if (!terminal.has(current.status) && gate.paused) {
+          retained = true;
+          throw paused(gate.reason ?? "operator_pause", gate.retryAt);
+        }
         if (
           current.status === "paused" ||
           current.status === "pause_requested"

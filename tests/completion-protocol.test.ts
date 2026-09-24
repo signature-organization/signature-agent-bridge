@@ -210,3 +210,44 @@ it("rejects no-tool and parallel-tool violations without fabricating an answer",
     ),
   ).toThrow();
 });
+
+it.each([
+  [
+    "asynchronous validators",
+    { $async: true, type: "object", properties: { x: { type: "integer" } } },
+  ],
+  [
+    "property-name patterns",
+    { type: "object", propertyNames: { pattern: "^(a+)+$" } },
+  ],
+  [
+    "unevaluated-item patterns",
+    { type: "array", unevaluatedItems: { pattern: "^(a+)+$" } },
+  ],
+  ["unknown validation keywords", { type: "object", customValidator: true }],
+  [
+    "unsupported dependency schemas",
+    { type: "object", dependencies: { x: { pattern: "^(a+)+$" } } },
+  ],
+  ["cyclic references", { $ref: "#" }],
+])(
+  "rejects %s in both function and response schemas before admission",
+  (_name, schema) => {
+    for (const request of [
+      {
+        ...base,
+        tools: [
+          { type: "function", function: { name: "test", parameters: schema } },
+        ],
+      },
+      {
+        ...base,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "Test", schema },
+        },
+      },
+    ])
+      expect(() => prepareCompletion(request)).toThrow();
+  },
+);

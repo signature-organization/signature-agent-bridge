@@ -119,19 +119,19 @@ This is buffered streaming: it keeps the connection active but does not expose t
 
 ## Supported contract
 
-| Field or capability                      | Support                                                                                                                                                 |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `messages`                               | 1–128 messages; system, developer, user, assistant, tool; strings or text-only content parts                                                            |
-| `tools`                                  | Up to 32 function definitions; up to 16 returned calls; validated JSON arguments                                                                        |
-| `tool_choice`                            | `auto`, `none`, `required`, or a named function                                                                                                         |
-| `parallel_tool_calls`                    | Boolean; false rejects a response containing multiple calls                                                                                             |
-| `response_format`                        | `text`, `json_object`, `json_schema`                                                                                                                    |
-| JSON Schema                              | Bounded schemas, including local `$ref`/`$defs`; external references, regex patterns, format annotations, and dynamic/recursive references are rejected |
-| `n`                                      | Exactly 1                                                                                                                                               |
-| `stream`, `stream_options.include_usage` | Buffered OpenAI SSE and optional observed usage                                                                                                         |
-| `bridge`                                 | `execution` and `background` as described above                                                                                                         |
-| Sampling and generation parameters       | `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`, `stop`, penalties, seed, and logprobs return HTTP 400                                    |
-| Other APIs and media                     | Responses, embeddings, audio, images, video, files, batches, and multimodal content are unsupported                                                     |
+| Field or capability                      | Support                                                                                                                                                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `messages`                               | 1–128 messages; system, developer, user, assistant, tool; strings or text-only content parts                                                                                                |
+| `tools`                                  | Up to 32 function definitions; up to 16 returned calls; validated JSON arguments                                                                                                            |
+| `tool_choice`                            | `auto`, `none`, `required`, or a named function                                                                                                                                             |
+| `parallel_tool_calls`                    | Boolean; false rejects a response containing multiple calls                                                                                                                                 |
+| `response_format`                        | `text`, `json_object`, `json_schema`                                                                                                                                                        |
+| JSON Schema                              | Bounded schemas with acyclic local JSON Pointer `$ref`/`$defs`; asynchronous schemas, unsupported keywords, external/cyclic references, regex patterns, and format annotations are rejected |
+| `n`                                      | Exactly 1                                                                                                                                                                                   |
+| `stream`, `stream_options.include_usage` | Buffered OpenAI SSE and optional observed usage                                                                                                                                             |
+| `bridge`                                 | `execution` and `background` as described above                                                                                                                                             |
+| Sampling and generation parameters       | `temperature`, `top_p`, `max_tokens`, `max_completion_tokens`, `stop`, penalties, seed, and logprobs return HTTP 400                                                                        |
+| Other APIs and media                     | Responses, embeddings, audio, images, video, files, batches, and multimodal content are unsupported                                                                                         |
 
 The request object is strict: unsupported fields return an error rather than silently changing behavior. The expanded conversation is limited to 100,000 characters and the HTTP body to 120,000 bytes. Profiles bound attempt duration, output size, and model turns. Schema validation is enforced even when `strict` is false.
 

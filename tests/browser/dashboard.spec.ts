@@ -48,6 +48,20 @@ test.beforeAll(async () => {
         ready: async () => ({ ready: true }),
         run: async ({ job }, emit) => {
           emit({ kind: "output", text: "Working on your request" });
+          if (job.completion)
+            return {
+              status: "succeeded",
+              result: JSON.stringify({
+                content:
+                  "Your bridge is ready for OpenAI-compatible applications.",
+                tool_calls: [],
+              }),
+              usage: {
+                prompt_tokens: 12,
+                completion_tokens: 8,
+                total_tokens: 20,
+              },
+            };
           return {
             status: "succeeded",
             result:
@@ -226,7 +240,7 @@ test("owner can create and revoke a scoped application token", async ({
   const token = await page.locator("#new-token").innerText();
   expect(
     (
-      await fetch(service.address + "/v1/status", {
+      await fetch(service.address + "/v1/bridge/status", {
         headers: { Authorization: "Bearer " + token },
       })
     ).status,
@@ -239,7 +253,7 @@ test("owner can create and revoke a scoped application token", async ({
   await expect(page.locator("#tokens")).toContainText("test-client (revoked)");
   expect(
     (
-      await fetch(service.address + "/v1/status", {
+      await fetch(service.address + "/v1/bridge/status", {
         headers: { Authorization: "Bearer " + token },
       })
     ).status,
@@ -356,6 +370,39 @@ test("template editor validates references, saves reusable steps, and runs the n
   await expect(
     page.locator(".run").filter({ hasText: "draft-and-check" }),
   ).toContainText("succeeded", { timeout: 15000 });
+});
+
+test("completion jobs share the queue, show readable output and usage, and expose client connection details", async ({
+  page,
+}) => {
+  await login(page);
+  await page.getByRole("button", { name: "New job", exact: false }).click();
+  await page
+    .getByLabel("What should Claude work on?")
+    .fill("Confirm the bridge is ready for my application");
+  await page.locator("#mode").selectOption("inference");
+  const submission = page.waitForRequest(
+    (r) => r.method() === "POST" && r.url().endsWith("/v1/chat/completions"),
+  );
+  await page.getByRole("button", { name: "Queue job", exact: true }).click();
+  expect((await submission).postDataJSON().bridge).toEqual({
+    execution: "inference",
+    background: true,
+  });
+  await expect(page.locator("#messages")).toContainText("Your bridge is ready");
+  await expect(page.locator("#messages")).not.toContainText('"tool_calls"');
+  await expect(page.locator("#job-meta")).toContainText("20 tokens");
+  await expect(page.locator("#message-form")).toBeHidden();
+  await capture(page, "completion-desktop");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await capture(page, "completion-mobile");
+  await page.locator('[data-view="diagnostics"]').click();
+  await expect(page.locator("#diagnostics-view")).toContainText(
+    "bridge/default",
+  );
+  await expect(page.locator("#diagnostics-view")).toContainText(
+    service.address + "/v1",
+  );
 });
 
 test("keeps recent jobs visible and preserves loaded history across refreshes", async ({

@@ -52,7 +52,7 @@ Ask Claude to use `bridge_templates` and `bridge_template_save`. The included sk
 Owner-authenticated API clients can save an equivalent definition:
 
 ```sh
-curl --fail-with-body -X PUT "$BRIDGE_URL/v1/admin/templates/research-review" \
+curl --fail-with-body -X PUT "$BRIDGE_URL/v1/bridge/admin/templates/research-review" \
   -H "Authorization: Bearer $BRIDGE_OWNER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -66,7 +66,7 @@ curl --fail-with-body -X PUT "$BRIDGE_URL/v1/admin/templates/research-review" \
   }'
 ```
 
-`GET /v1/admin/templates` lists full definitions. `DELETE /v1/admin/templates/{templateId}` removes a reusable definition while preserving existing run snapshots.
+`GET /v1/bridge/admin/templates` lists full definitions. `DELETE /v1/bridge/admin/templates/{templateId}` removes a reusable definition while preserving existing run snapshots.
 
 You can also edit the `workflows` array in `config.json` while the service is stopped, then restart it. Do not edit the file concurrently with console updates.
 

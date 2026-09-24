@@ -61,14 +61,17 @@ const action = (label, fn) => {
   return b;
 };
 async function api(path, body, method = body === undefined ? "GET" : "POST") {
-  const response = await fetch("/v1" + path, {
-    method,
-    headers: {
-      Authorization: "Bearer " + token,
-      "Content-Type": "application/json",
+  const response = await fetch(
+    (path === "/chat/completions" ? "/v1" : "/v1/bridge") + path,
+    {
+      method,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
+  );
   const data = await response.json();
   if (!response.ok) throw new Error(data.error?.message ?? "Request failed");
   return data;
@@ -82,10 +85,22 @@ function renderJobs() {
     const row = document.createElement("tr");
     if (job.id === selected) row.className = "active";
     const task = document.createElement("td");
-    task.append(action(job.prompt.slice(0, 110), () => selectJob(job.id)));
+    const prompt =
+      job.completion?.messages.filter((m) => m.role === "user").at(-1)
+        ?.content ?? job.prompt;
+    task.append(
+      action(
+        (typeof prompt === "string" ? prompt : "Chat completion").slice(0, 110),
+        () => selectJob(job.id),
+      ),
+    );
     const sub = document.createElement("small");
     sub.textContent =
-      (job.mode === "cli" ? "Claude Code" : "Host conversation") +
+      (job.completion
+        ? "Chat completion"
+        : job.mode === "cli"
+          ? "Claude agent"
+          : "Host conversation") +
       " / " +
       job.profile;
     task.append(sub);
@@ -97,6 +112,31 @@ function renderJobs() {
     updated.append(time);
     row.append(task, state, updated);
     el("jobs").append(row);
+  }
+}
+function completionText(value) {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value))
+    return value
+      .map((part) => (part.type === "text" ? part.text : JSON.stringify(part)))
+      .join("\n");
+  return value == null ? "" : JSON.stringify(value, null, 2);
+}
+function completionResult(raw) {
+  // Persisted inference results use a validated transport envelope; show the answer
+  // and client-owned function requests instead of exposing that internal wrapper.
+  try {
+    const value = JSON.parse(raw);
+    return [
+      value.content ?? "",
+      ...(value.tool_calls ?? []).map(
+        (call) => "Client function: " + call.name + "\n" + call.arguments,
+      ),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  } catch {
+    return raw;
   }
 }
 async function selectJob(id) {
@@ -112,10 +152,11 @@ async function selectJob(id) {
     "job-meta",
     job.profile +
       " / " +
-      job.mode +
+      (job.completion ? "inference" : job.mode) +
       " / " +
       (job.compactions ?? 0) +
-      " compactions",
+      " compactions" +
+      (job.usage ? " / " + job.usage.total_tokens + " tokens" : ""),
   );
   text("job-error", human(job.error ?? ""));
   el("job-error").hidden = !job.error;
@@ -145,18 +186,45 @@ async function selectJob(id) {
       }),
     );
   el("messages").replaceChildren();
-  for (const message of [...job.messages, ...(job.pendingMessages ?? [])]) {
+  const messages = job.completion
+    ? [
+        ...job.completion.messages.map((m) => ({
+          role: m.role,
+          text: [
+            completionText(m.content),
+            ...(m.tool_calls ?? []).map(
+              (call) =>
+                "Client function: " +
+                call.function.name +
+                "\n" +
+                call.function.arguments,
+            ),
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+        })),
+        ...(job.result
+          ? [{ role: "assistant", text: completionResult(job.result) }]
+          : []),
+      ]
+    : [...job.messages, ...(job.pendingMessages ?? [])];
+  for (const message of messages) {
     const node = document.createElement("div");
     node.className = "message " + message.role;
     const label = document.createElement("strong");
-    label.textContent = message.role === "user" ? "You" : "Claude";
+    label.textContent =
+      message.role === "user"
+        ? "You"
+        : message.role === "assistant"
+          ? "Claude"
+          : message.role;
     const body = document.createElement("span");
     body.textContent = message.text;
     node.append(label, body);
     el("messages").append(node);
   }
   el("message-form").hidden =
-    Boolean(job.workflowRunId) ||
+    Boolean(job.workflowRunId || job.completion) ||
     ["paused", "pause_requested", "cancel_requested"].includes(job.status);
   el("subagents").replaceChildren();
   for (const [id, task] of Object.entries(job.subagents ?? {})) {
@@ -173,7 +241,17 @@ async function selectJob(id) {
   if (revision !== selectionRevision) return;
   text(
     "attempts",
-    JSON.stringify({ sessionId: job.sessionId ?? null, ...attempts }, null, 2),
+    JSON.stringify(
+      {
+        model: "bridge/" + job.profile,
+        execution: job.completion ? "inference" : job.mode,
+        usage: job.usage ?? null,
+        sessionId: job.sessionId ?? null,
+        ...attempts,
+      },
+      null,
+      2,
+    ),
   );
   renderJobs();
 }
@@ -373,6 +451,8 @@ async function refresh() {
       ["Connected hosts", status.hosts ?? "Unavailable"],
       ["Event streams", status.eventConnections],
       ["Profiles", status.profiles.join(", ")],
+      ["OpenAI base URL", location.origin + "/v1"],
+      ["Model aliases", status.profiles.map((p) => "bridge/" + p).join(", ")],
       ["Workspace", status.workspace ?? "Owner access required"],
     ];
     el("health-facts").replaceChildren();
@@ -488,7 +568,7 @@ async function stream(signal) {
   let delay = 1000;
   while (token && !signal.aborted) {
     try {
-      const response = await fetch("/v1/events", {
+      const response = await fetch("/v1/bridge/events", {
         headers: {
           Authorization: "Bearer " + token,
           "Last-Event-ID": String(eventCursor),
@@ -596,10 +676,13 @@ for (const cmd of ["pause", "resume"])
 el("job-form").onsubmit = async (event) => {
   event.preventDefault();
   try {
-    const job = await api("/jobs", {
-      prompt: el("prompt").value,
-      profile: el("profile").value,
-      mode: el("mode").value,
+    const job = await api("/chat/completions", {
+      model: "bridge/" + el("profile").value,
+      messages: [{ role: "user", content: el("prompt").value }],
+      bridge: {
+        execution: el("mode").value === "cli" ? "agent" : el("mode").value,
+        background: true,
+      },
     });
     el("prompt").value = "";
     el("job-dialog").close();

@@ -68,7 +68,7 @@ export function createAdapter(connection: Connection, channel = false) {
     "bridge_status",
     "Inspect execution readiness, subscription pause state, profiles, and workflow templates.",
     {},
-    () => request(connection, "/v1/status"),
+    () => request(connection, "/v1/bridge/status"),
   );
   register(
     "bridge_submit",
@@ -76,9 +76,17 @@ export function createAdapter(connection: Connection, channel = false) {
     {
       prompt: z.string().min(1).max(100000),
       profile: z.string().default("default"),
-      mode: z.enum(["cli", "channel"]).default("cli"),
+      mode: z.enum(["cli", "channel", "inference"]).default("cli"),
     },
-    (args) => request(connection, "/v1/jobs", args),
+    (args) =>
+      request(connection, "/v1/chat/completions", {
+        model: "bridge/" + args.profile,
+        messages: [{ role: "user", content: args.prompt }],
+        bridge: {
+          execution: args.mode === "cli" ? "agent" : args.mode,
+          background: true,
+        },
+      }),
   );
   register(
     "bridge_jobs",
@@ -87,21 +95,23 @@ export function createAdapter(connection: Connection, channel = false) {
     (a) =>
       request(
         connection,
-        "/v1/jobs?after=" + encodeURIComponent(String(a.after ?? "")),
+        "/v1/bridge/jobs?after=" + encodeURIComponent(String(a.after ?? "")),
       ),
   );
   register(
     "bridge_job",
     "Read a job's results, conversation, compaction count, and child tasks.",
     { id: z.string().uuid() },
-    (a) => request(connection, "/v1/jobs/" + a.id),
+    (a) => request(connection, "/v1/bridge/jobs/" + a.id),
   );
   register(
     "bridge_message",
     "Add a follow-up turn to an existing standalone job.",
     { id: z.string().uuid(), text: z.string().min(1).max(100000) },
     (a) =>
-      request(connection, "/v1/jobs/" + a.id + "/messages", { text: a.text }),
+      request(connection, "/v1/bridge/jobs/" + a.id + "/messages", {
+        text: a.text,
+      }),
   );
   register(
     "bridge_control",
@@ -110,22 +120,22 @@ export function createAdapter(connection: Connection, channel = false) {
       id: z.string().uuid(),
       action: z.enum(["pause", "resume", "cancel", "retry"]),
     },
-    (a) => request(connection, "/v1/jobs/" + a.id + "/" + a.action, {}),
+    (a) => request(connection, "/v1/bridge/jobs/" + a.id + "/" + a.action, {}),
   );
   register(
     "bridge_scheduler",
     "Pause or resume dispatch for the entire local bridge. Paused jobs resume individually; provider reset times are enforced.",
     { action: z.enum(["pause", "resume"]) },
-    (a) => request(connection, "/v1/admin/" + a.action, {}),
+    (a) => request(connection, "/v1/bridge/admin/" + a.action, {}),
   );
   register("bridge_workflows", "List durable workflow runs.", {}, () =>
-    request(connection, "/v1/workflow-runs"),
+    request(connection, "/v1/bridge/workflow-runs"),
   );
   register(
     "bridge_templates",
     "List reusable workflow definitions, their required inputs, steps, and execution profiles.",
     {},
-    () => request(connection, "/v1/admin/templates"),
+    () => request(connection, "/v1/bridge/admin/templates"),
   );
   register(
     "bridge_template_save",
@@ -134,7 +144,7 @@ export function createAdapter(connection: Connection, channel = false) {
     (a) =>
       request(
         connection,
-        "/v1/admin/templates/" + encodeURIComponent(String(a.id)),
+        "/v1/bridge/admin/templates/" + encodeURIComponent(String(a.id)),
         a,
         "PUT",
       ),
@@ -143,14 +153,18 @@ export function createAdapter(connection: Connection, channel = false) {
     "bridge_workflow_start",
     "Start an owner-configured workflow template with its required inputs.",
     { templateId: z.string(), inputs: z.record(z.string(), z.string()) },
-    (a) => request(connection, "/v1/workflow-runs", a),
+    (a) => request(connection, "/v1/bridge/workflow-runs", a),
   );
   register(
     "bridge_workflow_control",
     "Pause, resume, or cancel a workflow at its current step.",
     { id: z.string().uuid(), action: z.enum(["pause", "resume", "cancel"]) },
     (a) =>
-      request(connection, "/v1/workflow-runs/" + a.id + "/" + a.action, {}),
+      request(
+        connection,
+        "/v1/bridge/workflow-runs/" + a.id + "/" + a.action,
+        {},
+      ),
   );
   register(
     "bridge_panel",
@@ -166,32 +180,32 @@ export function createAdapter(connection: Connection, channel = false) {
     "bridge_channel_pending",
     "Inspect jobs explicitly routed to the current host conversation; no job is claimed by this call.",
     {},
-    () => request(connection, "/v1/channel/pending"),
+    () => request(connection, "/v1/bridge/channel/pending"),
   );
   register(
     "bridge_channel_claim",
     "Claim exclusive responsibility before executing a channel job. Save the returned attempt ID and fence for subsequent updates.",
     { jobId: z.string().uuid() },
-    (a) => request(connection, "/v1/channel/claim", { ...a, hostId }),
+    (a) => request(connection, "/v1/bridge/channel/claim", { ...a, hostId }),
   );
   const receipt = { attemptId: z.string().uuid(), fence: z.string().uuid() };
   register(
     "bridge_channel_progress",
     "Record progress and check for pause_requested or cancel_requested. Stop your work when requested, then acknowledge the stop.",
     { ...receipt, text: z.string().max(16000) },
-    (a) => request(connection, "/v1/channel/progress", { ...a, hostId }),
+    (a) => request(connection, "/v1/bridge/channel/progress", { ...a, hostId }),
   );
   register(
     "bridge_channel_complete",
     "Complete a claimed job only after its work has finished and no stop is pending.",
     { ...receipt, result: z.string().max(100000) },
-    (a) => request(connection, "/v1/channel/complete", { ...a, hostId }),
+    (a) => request(connection, "/v1/bridge/channel/complete", { ...a, hostId }),
   );
   register(
     "bridge_channel_stopped",
     "Acknowledge a requested pause or cancellation only after all work for this channel job has stopped.",
     receipt,
-    (a) => request(connection, "/v1/channel/stopped", { ...a, hostId }),
+    (a) => request(connection, "/v1/bridge/channel/stopped", { ...a, hostId }),
   );
   let busy = false,
     closed = false,
@@ -200,9 +214,12 @@ export function createAdapter(connection: Connection, channel = false) {
     if (busy || closed) return;
     busy = true;
     try {
-      await request(connection, "/v1/hosts/heartbeat", { id: hostId });
+      await request(connection, "/v1/bridge/hosts/heartbeat", { id: hostId });
       if (channel && Date.now() - lastNotify > 15000) {
-        const data = (await request(connection, "/v1/channel/pending")) as {
+        const data = (await request(
+          connection,
+          "/v1/bridge/channel/pending",
+        )) as {
           jobs: Job[];
         };
         if (data.jobs.length)
@@ -230,9 +247,9 @@ export function createAdapter(connection: Connection, channel = false) {
   server.server.onclose = () => {
     closed = true;
     clearInterval(timer);
-    void request(connection, "/v1/hosts/disconnect", { id: hostId }).catch(
-      () => {},
-    );
+    void request(connection, "/v1/bridge/hosts/disconnect", {
+      id: hostId,
+    }).catch(() => {});
   };
   return server;
 }

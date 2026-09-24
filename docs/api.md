@@ -1,8 +1,8 @@
-# REST and server-sent events
+# Unified API reference
 
 [README](../README.md) · [OpenAPI 3.1](openapi.json) · [Runnable client](../examples/client.mjs) · [Tunnels](tunnels.md)
 
-The bridge accepts commands over HTTP and sends asynchronous updates over SSE. SSE is the server-to-client half of the bidirectional connection: clients submit jobs, follow-ups, and controls through REST. The same durable jobs are visible through MCP and the management console.
+The bridge exposes one API: OpenAI-compatible `/v1/models` and `/v1/chat/completions`, plus `/v1/bridge/*` orchestration extensions. The console, MCP integration, SDK clients, and workflows share authentication, profiles, one durable queue, and the same execution lifecycle. See the [SDK guide](openai-compatible.md) for the compatibility contract and runnable Python examples.
 
 ## Authentication and errors
 
@@ -10,39 +10,52 @@ Use `Authorization: Bearer $BRIDGE_TOKEN` on every `/v1/` request. Tokens never 
 
 Client tokens are scoped to a principal, allowed profiles, and operations. `read` permits status and that principal's resources; `submit` permits jobs and follow-ups; `control` permits pause, resume, cancel, and retry; `workflows` permits starting an allowed template. Owner tokens administer configuration and all resources.
 
-Errors use `{"error":{"code":"...","message":"...","requestId":"..."}}`. Common statuses: 400 invalid input, 401 invalid token, 403 unavailable scope/profile/host/origin, 404 inaccessible resource, 409 incompatible state or idempotency conflict, 413 size bound, 429 admission or rate limit, 503 unavailable configuration.
+Errors use `{"error":{"code":"...","message":"...","type":"invalid_request_error","param":null,"requestId":"..."}}`; the type reflects the error class, and an admitted completion can also include `job_id`. Common statuses: 400 invalid input, 401 invalid token, 403 unavailable scope/profile/host/origin, 404 inaccessible resource, 409 incompatible state or idempotency conflict, 413 size bound, 429 admission or rate limit, 503 unavailable configuration.
 
 Traffic is limited to 240 requests per minute per principal **per admission class**: ordinary requests, execution controls, and host leases. Read polling cannot exhaust the lease or stop/cancel bucket. SSE permits four connections per principal and 100 per service.
 
 ## Jobs and conversation turns
 
-| Method and path                                  | Purpose                                                          |
-| ------------------------------------------------ | ---------------------------------------------------------------- |
-| `GET /v1/status`                                 | Version, readiness, dispatch gate, profiles, available templates |
-| `POST /v1/jobs`                                  | Queue `{prompt, profile?, mode?}`; returns 202 and a durable job |
-| `GET /v1/jobs?limit=100&after=UUID&order=asc`    | Principal-scoped page; limit 1–200, asc or desc                  |
-| `GET /v1/jobs/{id}`                              | Current job, messages, status, session, reported child tasks     |
-| `GET /v1/jobs/{id}/result`                       | 202 while nonterminal; 200 with terminal status/result/error     |
-| `GET /v1/jobs/{id}/attempts`                     | Attempt history without private claim fences                     |
-| `GET /v1/jobs/{id}/messages`                     | Conversation and pending messages                                |
-| `POST /v1/jobs/{id}/messages`                    | Queue `{text}` as another native session turn                    |
-| `POST /v1/jobs/{id}/{pause,resume,cancel,retry}` | Explicit execution control                                       |
+| Method and path                                         | Purpose                                                                                |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `GET /v1/bridge/status`                                 | Version, readiness, dispatch gate, profiles, available templates                       |
+| `GET /v1/models`                                        | Discover authorized `bridge/<profile>` models                                          |
+| `POST /v1/chat/completions`                             | Submit messages; returns completion JSON/SSE, or 202 Job with `bridge.background:true` |
+| `GET /v1/bridge/jobs?limit=100&after=UUID&order=asc`    | Principal-scoped page; limit 1–200, asc or desc                                        |
+| `GET /v1/bridge/jobs/{id}`                              | Current job, messages, status, session, reported child tasks                           |
+| `GET /v1/bridge/jobs/{id}/result`                       | 202 while nonterminal; 200 with terminal status/result/error                           |
+| `GET /v1/bridge/jobs/{id}/attempts`                     | Attempt history without private claim fences                                           |
+| `GET /v1/bridge/jobs/{id}/messages`                     | Conversation and pending messages                                                      |
+| `POST /v1/bridge/jobs/{id}/messages`                    | Queue `{text}` as another native session turn                                          |
+| `POST /v1/bridge/jobs/{id}/{pause,resume,cancel,retry}` | Explicit execution control                                                             |
 
-`mode` defaults to `cli`; `channel` waits for a host to claim it. `profile` defaults to `default`. The caller supplies prompts and a configured profile, never arbitrary CLI arguments, executable paths, environment overrides, or working directories.
+`model` selects a configured profile, such as `bridge/default`. `bridge.execution` defaults to `inference`: native tools are disabled and client functions are returned as OpenAI tool calls. Choose `agent` for profile-controlled native work or `channel` for a host conversation. `bridge.background:true` returns a durable Job receipt; channel requires it. Native agent/channel input is one text user message. The caller cannot supply CLI arguments, executable paths, environment overrides, or working directories.
+
+```json
+{
+  "model": "bridge/default",
+  "messages": [
+    { "role": "user", "content": "Write a concise project checklist" }
+  ],
+  "bridge": { "execution": "agent", "background": true }
+}
+```
 
 Use a unique `Idempotency-Key` for job creation, follow-ups, and workflow creation. Repeating the same principal, operation, key, and body returns the existing resource; changing the body returns 409. Preserve the key across uncertain network retries.
 
-A message during execution or queued native continuation waits until that turn completes. Paused jobs must resume before accepting messages. Workflow-step prompts are fixed; start a separate job for follow-up discussion. Resume preserves an available native session; retry creates a new session and may repeat effects.
+Inference histories belong to the calling SDK: submit full history as a new chat request for each turn. The follow-up endpoint is for native agent conversations. A message during execution or queued native continuation waits until that turn completes. Paused jobs must resume before accepting messages. Workflow-step prompts are fixed; start a separate job for follow-up discussion. Resume preserves an available native session; retry creates a new session and may repeat effects.
 
-## Event stream
+## Orchestration event stream
 
 ```sh
-curl --no-buffer --fail-with-body "$BRIDGE_URL/v1/events" \
+curl --no-buffer --fail-with-body "$BRIDGE_URL/v1/bridge/events" \
   -H "Authorization: Bearer $BRIDGE_TOKEN" \
   -H "Last-Event-ID: 42"
 ```
 
-Each event has a durable numeric ID:
+This stream describes jobs and workflows. Chat Completions uses standard OpenAI SSE on its own response when `stream:true`, with buffered validated output. Both belong to the same API; they have different message contracts.
+
+Each orchestration event has a durable numeric ID:
 
 ```text
 id: 43
@@ -61,24 +74,24 @@ Use `fetch` streaming in browsers to send a bearer header. Native `EventSource` 
 
 ## Workflows and templates
 
-| Method and path                                     | Purpose                                            |
-| --------------------------------------------------- | -------------------------------------------------- |
-| `POST /v1/workflow-runs`                            | Start `{templateId, inputs}`; returns 202          |
-| `GET /v1/workflow-runs`                             | Up to 200 most recent scoped runs                  |
-| `GET /v1/workflow-runs/{id}`                        | Template snapshot, inputs, step job IDs, state     |
-| `POST /v1/workflow-runs/{id}/{pause,resume,cancel}` | Control a run without replaying completed steps    |
-| `GET /v1/admin/templates`                           | Owner: full reusable definitions                   |
-| `PUT /v1/admin/templates/{templateId}`              | Owner: validate and persist a definition           |
-| `DELETE /v1/admin/templates/{templateId}`           | Owner: remove a definition, preserve run snapshots |
+| Method and path                                            | Purpose                                            |
+| ---------------------------------------------------------- | -------------------------------------------------- |
+| `POST /v1/bridge/workflow-runs`                            | Start `{templateId, inputs}`; returns 202          |
+| `GET /v1/bridge/workflow-runs`                             | Up to 200 most recent scoped runs                  |
+| `GET /v1/bridge/workflow-runs/{id}`                        | Template snapshot, inputs, step job IDs, state     |
+| `POST /v1/bridge/workflow-runs/{id}/{pause,resume,cancel}` | Control a run without replaying completed steps    |
+| `GET /v1/bridge/admin/templates`                           | Owner: full reusable definitions                   |
+| `PUT /v1/bridge/admin/templates/{templateId}`              | Owner: validate and persist a definition           |
+| `DELETE /v1/bridge/admin/templates/{templateId}`           | Owner: remove a definition, preserve run snapshots |
 
 See [template authoring](workflows.md) for schemas, valid references, and use cases.
 
 ## Owner and host operations
 
-Owner routes include `POST /v1/admin/{pause,resume,stop}`, `GET/POST /v1/admin/tokens`, and `POST /v1/admin/tokens/revoke`. Token creation takes `{id, profiles, scopes}`; revocation takes `{id}` and revokes every token for that principal.
+Owner routes include `POST /v1/bridge/admin/{pause,resume,stop}`, `GET/POST /v1/bridge/admin/tokens`, and `POST /v1/bridge/admin/tokens/revoke`. Token creation takes `{id, profiles, scopes}`; revocation takes `{id}` and revokes every token for that principal.
 
-Adapters renew `POST /v1/hosts/heartbeat` with `{id}` and close through `POST /v1/hosts/disconnect`. Leases last seven seconds.
+Adapters renew `POST /v1/bridge/hosts/heartbeat` with `{id}` and close through `POST /v1/bridge/hosts/disconnect`. Leases last seven seconds.
 
-For host-conversation execution: list `GET /v1/channel/pending`, then `POST /v1/channel/claim` with `{hostId, jobId}`. The response contains the job and a private attempt receipt. One host may hold one outstanding claim. Progress, completion, and stopped acknowledgments must supply the same `hostId`, `attemptId`, and `fence`. Add `text` to progress or `result` to completion. A notification alone grants no execution authority.
+For host-conversation execution: list `GET /v1/bridge/channel/pending`, then `POST /v1/bridge/channel/claim` with `{hostId, jobId}`. The response contains the job and a private attempt receipt. One host may hold one outstanding claim. Progress, completion, and stopped acknowledgments must supply the same `hostId`, `attemptId`, and `fence`. Add `text` to progress or `result` to completion. A notification alone grants no execution authority.
 
 A lost lease interrupts the attempt and rejects late completion. The operator must reconcile external actions before retrying.

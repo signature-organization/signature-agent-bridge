@@ -99,6 +99,12 @@ export const configSchema = z.strictObject({
     .default(["localhost", "127.0.0.1"]),
   allowedOrigins: z.array(z.string().url()).default([]),
   idleMs: z.number().int().min(1000).max(3600000).default(30000),
+  openai: z
+    .strictObject({
+      timeoutMs: z.number().int().min(100).max(3600000).default(300000),
+      maxConnections: z.number().int().min(1).max(64).default(16),
+    })
+    .prefault({}),
   profiles: z
     .record(identifier, profileSchema)
     .default({ default: profileSchema.parse({}) }),

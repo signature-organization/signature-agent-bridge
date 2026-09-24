@@ -125,19 +125,20 @@ Usage: signature-agent-bridge <command> [--data-dir PATH]
     return;
   }
   let result: unknown;
-  if (command === "status") result = await request(connection, "/v1/status");
+  if (command === "status")
+    result = await request(connection, "/v1/bridge/status");
   else if (["pause", "resume", "stop"].includes(command))
-    result = await request(connection, "/v1/admin/" + command, {});
+    result = await request(connection, "/v1/bridge/admin/" + command, {});
   else if (command === "token") {
     if (!values.id) throw new Error("token requires --id NAME");
-    result = await request(connection, "/v1/admin/tokens", {
+    result = await request(connection, "/v1/bridge/admin/tokens", {
       id: values.id,
       profiles: (values.profiles ?? "default").split(","),
       scopes: (values.scopes ?? "read,submit,control,workflows").split(","),
     });
   } else if (command === "revoke") {
     if (!values.id) throw new Error("revoke requires --id NAME");
-    result = await request(connection, "/v1/admin/tokens/revoke", {
+    result = await request(connection, "/v1/bridge/admin/tokens/revoke", {
       id: values.id,
     });
   } else throw new Error("Unknown command: " + command);

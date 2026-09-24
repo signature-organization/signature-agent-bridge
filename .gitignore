@@ -45,3 +45,9 @@ test-results/
 playwright-report/
 AGENTS.md
 CLAUDE.local.md
+
+# Python SDK compatibility tests
+.venv/
+.client-venv/
+__pycache__/
+*.py[cod]

@@ -21,6 +21,7 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { ClaudeWorker } from "../src/claude.js";
+import { prepareCompletion } from "../src/completion-protocol.js";
 import type { Job, Attempt } from "../src/contracts.js";
 let dir: string;
 const fixture = resolve("tests/fixtures/claude-process.mjs");
@@ -65,6 +66,33 @@ function input(prompt: string) {
   return { job, attempt, cwd: dir };
 }
 describe("official CLI boundary", () => {
+  it("runs completion jobs without native tools or agents and persists structured output and observed usage", async () => {
+    const execution = input("completion");
+    execution.job.completion = prepareCompletion({
+      model: "bridge/default",
+      messages: [{ role: "user", content: "Hello" }],
+    }).request;
+    const outcome = await worker({
+      agents: {
+        danger: { description: "agent", prompt: "test", tools: ["Bash"] },
+      },
+    }).run(execution, () => {}, new AbortController().signal);
+    expect(outcome.status).toBe("succeeded");
+    const envelope = JSON.parse(outcome.result!);
+    const args = JSON.parse(envelope.content).args as string[];
+    expect(args[args.indexOf("--tools") + 1]).toBe("");
+    expect(args).not.toContain("--agents");
+    expect(args).toContain("--json-schema");
+    expect(JSON.parse(args[args.indexOf("--json-schema") + 1]!).$schema).toBe(
+      "http://json-schema.org/draft-07/schema#",
+    );
+    expect(args).toContain("--system-prompt");
+    expect(outcome.usage).toEqual({
+      prompt_tokens: 10,
+      completion_tokens: 7,
+      total_tokens: 17,
+    });
+  });
   it("surfaces native compaction and child-task events and preserves rate-limit resets even on nonzero exit", async () => {
     const events: string[] = [];
     const outcome = await worker().run(

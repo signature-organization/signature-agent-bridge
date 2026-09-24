@@ -11,14 +11,22 @@
     {
       "name": "signature-agent-bridge",
       "source": "./integrations/claude-code",
-      "description": "Durable jobs, workflows, REST/SSE, and a local dashboard for your Claude subscription.",
+      "description": "OpenAI-compatible API, durable jobs, workflows, and a local console for your own Claude subscription.",
       "version": "0.1.0",
       "author": {
         "name": "@ancongui",
         "url": "https://github.com/ancongui"
       },
       "license": "Apache-2.0",
-      "keywords": ["mcp", "orchestration", "sse", "workflows", "local-first"]
+      "keywords": [
+        "mcp",
+        "orchestration",
+        "sse",
+        "workflows",
+        "local-first",
+        "openai-compatible",
+        "pydantic-ai"
+      ]
     }
   ]
 }

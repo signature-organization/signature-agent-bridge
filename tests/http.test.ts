@@ -76,12 +76,17 @@ afterEach(async () => {
   store?.close();
   rmSync(dir, { recursive: true, force: true });
 });
+const background = (prompt = "hello", profile = "default") => ({
+  model: "bridge/" + profile,
+  messages: [{ role: "user", content: prompt }],
+  bridge: { execution: "agent", background: true },
+});
 const headers = () => ({ authorization: "Bearer " + token });
 it("permits explicit browser origins without bypassing authentication on commands", async () => {
   const origin = "https://console.example";
   const preflight = await app.inject({
     method: "OPTIONS",
-    url: "/v1/jobs",
+    url: "/v1/chat/completions",
     headers: {
       origin,
       "access-control-request-method": "POST",
@@ -94,14 +99,14 @@ it("permits explicit browser origins without bypassing authentication on command
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs",
+        url: "/v1/chat/completions",
         headers: { origin },
-        payload: { prompt: "hello" },
+        payload: background(),
       })
     ).statusCode,
   ).toBe(401);
   const result = await app.inject({
-    url: "/v1/status",
+    url: "/v1/bridge/status",
     headers: { ...headers(), origin },
   });
   expect(result.statusCode).toBe(200);
@@ -110,7 +115,7 @@ it("permits explicit browser origins without bypassing authentication on command
     (
       await app.inject({
         method: "OPTIONS",
-        url: "/v1/jobs",
+        url: "/v1/chat/completions",
         headers: { origin: "https://attacker.example" },
       })
     ).statusCode,
@@ -121,30 +126,31 @@ it("authenticates admission and prevents cross-client reads and revocation reuse
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs",
-        payload: { prompt: "hello" },
+        url: "/v1/chat/completions",
+        payload: background(),
       })
     ).statusCode,
   ).toBe(401);
   const response = await app.inject({
     method: "POST",
-    url: "/v1/jobs",
+    url: "/v1/chat/completions",
     headers: headers(),
-    payload: { prompt: "hello" },
+    payload: background(),
   });
   expect(response.statusCode).toBe(202);
   const id = response.json().id;
   expect(
     (
       await app.inject({
-        url: "/v1/jobs/" + id,
+        url: "/v1/bridge/jobs/" + id,
         headers: { authorization: "Bearer " + other },
       })
     ).statusCode,
   ).toBe(404);
   auth.revoke("alice");
   expect(
-    (await app.inject({ url: "/v1/jobs", headers: headers() })).statusCode,
+    (await app.inject({ url: "/v1/bridge/jobs", headers: headers() }))
+      .statusCode,
   ).toBe(401);
 });
 it("validates input, scope, origin and host before a job can execute", async () => {
@@ -152,9 +158,9 @@ it("validates input, scope, origin and host before a job can execute", async () 
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs",
+        url: "/v1/chat/completions",
         headers: headers(),
-        payload: { prompt: "hello", cwd: "/" },
+        payload: { ...background(), cwd: "/" },
       })
     ).statusCode,
   ).toBe(400);
@@ -162,16 +168,16 @@ it("validates input, scope, origin and host before a job can execute", async () 
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs",
+        url: "/v1/chat/completions",
         headers: headers(),
-        payload: { prompt: "hello", profile: "unconfigured" },
+        payload: background("hello", "unconfigured"),
       })
     ).statusCode,
-  ).toBe(403);
+  ).toBe(404);
   expect(
     (
       await app.inject({
-        url: "/v1/status",
+        url: "/v1/bridge/status",
         headers: { ...headers(), host: "attacker.example" },
       })
     ).statusCode,
@@ -179,7 +185,7 @@ it("validates input, scope, origin and host before a job can execute", async () 
   expect(
     (
       await app.inject({
-        url: "/v1/status",
+        url: "/v1/bridge/status",
         headers: { ...headers(), origin: "https://attacker.example" },
       })
     ).statusCode,
@@ -187,16 +193,16 @@ it("validates input, scope, origin and host before a job can execute", async () 
   const id = (
     await app.inject({
       method: "POST",
-      url: "/v1/jobs",
+      url: "/v1/chat/completions",
       headers: { authorization: "Bearer " + other },
-      payload: { prompt: "hello" },
+      payload: background(),
     })
   ).json().id;
   expect(
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs/" + id + "/cancel",
+        url: "/v1/bridge/jobs/" + id + "/cancel",
         headers: { authorization: "Bearer " + other },
         payload: {},
       })
@@ -207,15 +213,15 @@ it("supports idempotent bidirectional messages, terminal results and retry contr
   const id = (
     await app.inject({
       method: "POST",
-      url: "/v1/jobs",
+      url: "/v1/chat/completions",
       headers: headers(),
-      payload: { prompt: "hello" },
+      payload: background(),
     })
   ).json().id;
   const attempt = store.claim("fixture", "cli")!;
   const follow = {
     method: "POST" as const,
-    url: "/v1/jobs/" + id + "/messages",
+    url: "/v1/bridge/jobs/" + id + "/messages",
     headers: { ...headers(), "idempotency-key": "follow" },
     payload: { text: "Make it shorter" },
   };
@@ -227,7 +233,7 @@ it("supports idempotent bidirectional messages, terminal results and retry contr
   store.finish(second, { status: "succeeded", result: "Short" });
   const messages = (
     await app.inject({
-      url: "/v1/jobs/" + id + "/messages",
+      url: "/v1/bridge/jobs/" + id + "/messages",
       headers: headers(),
     })
   ).json().messages;
@@ -240,7 +246,7 @@ it("supports idempotent bidirectional messages, terminal results and retry contr
   expect(
     (
       await app.inject({
-        url: "/v1/jobs/" + id + "/result",
+        url: "/v1/bridge/jobs/" + id + "/result",
         headers: headers(),
       })
     ).json().result,
@@ -254,7 +260,7 @@ it("replays SSE by event ID, isolates events and rejects expired cursors", async
   store.submit({ prompt: "hello" }, alice);
   store.submit({ prompt: "secret" }, auth.verify(other));
   const controller = new AbortController();
-  const response = await fetch(base + "/v1/events", {
+  const response = await fetch(base + "/v1/bridge/events", {
     headers: { ...headers(), origin: "https://console.example" },
     signal: controller.signal,
   });
@@ -271,7 +277,7 @@ it("replays SSE by event ID, isolates events and rejects expired cursors", async
   controller.abort();
   const newest = store.submit({ prompt: "next" }, alice);
   const replay = new AbortController();
-  const r = await fetch(base + "/v1/events", {
+  const r = await fetch(base + "/v1/bridge/events", {
     headers: { ...headers(), "Last-Event-ID": "1" },
     signal: replay.signal,
   });
@@ -285,7 +291,7 @@ it("replays SSE by event ID, isolates events and rejects expired cursors", async
   expect(
     (
       await app.inject({
-        url: "/v1/events",
+        url: "/v1/bridge/events",
         headers: { ...headers(), "last-event-id": "1" },
       })
     ).statusCode,
@@ -304,15 +310,15 @@ it("keeps host leases and job controls available when polling is rate limited", 
     { id: "owner", owner: true, profiles: [] },
   );
   for (let i = 0; i < 240; i++)
-    await app.inject({ url: "/v1/status", headers: h });
-  expect((await app.inject({ url: "/v1/status", headers: h })).statusCode).toBe(
-    429,
-  );
+    await app.inject({ url: "/v1/bridge/status", headers: h });
+  expect(
+    (await app.inject({ url: "/v1/bridge/status", headers: h })).statusCode,
+  ).toBe(429);
   expect(
     (
       await app.inject({
         method: "POST",
-        url: "/v1/hosts/heartbeat",
+        url: "/v1/bridge/hosts/heartbeat",
         headers: h,
         payload: { id: "active-host" },
       })
@@ -322,7 +328,7 @@ it("keeps host leases and job controls available when polling is rate limited", 
     (
       await app.inject({
         method: "POST",
-        url: "/v1/jobs/" + job.id + "/cancel",
+        url: "/v1/bridge/jobs/" + job.id + "/cancel",
         headers: h,
         payload: {},
       })

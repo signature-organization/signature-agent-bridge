@@ -18,12 +18,7 @@
 
 import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
-import {
-  BridgeError,
-  jobInputSchema,
-  terminal,
-  type Principal,
-} from "./contracts.js";
+import { BridgeError, terminal, type Principal } from "./contracts.js";
 import { parseConfig, templateSchema, type BridgeConfig } from "./config.js";
 import { QueueStore } from "./store.js";
 import { Tokens } from "./auth.js";
@@ -32,6 +27,7 @@ import { Workflows } from "./workflows.js";
 import { EventStreams } from "./events.js";
 import { Channels } from "./channels.js";
 import { uiAssets } from "./ui-assets.js";
+import { registerOpenAI, CompletionError, openAIError } from "./openai.js";
 export type HttpDependencies = {
   store: QueueStore;
   auth: Tokens;
@@ -50,6 +46,7 @@ export function createHttpService(d: HttpDependencies) {
     bodyLimit: 120000,
     requestTimeout: 30000,
     trustProxy: false,
+    forceCloseConnections: true,
   });
   const streams = new EventStreams(d.store, d.auth),
     principals = new WeakMap<FastifyRequest, Principal>();
@@ -105,19 +102,29 @@ export function createHttpService(d: HttpDependencies) {
             : status === 429
               ? "rate_limited"
               : "internal_error";
-    return reply.code(status).send({
-      error: {
-        code,
-        message:
-          error instanceof BridgeError
-            ? error.message
-            : status < 500
-              ? "Request validation failed"
-              : "Request could not be completed",
-        requestId: req.id,
-      },
-    });
+    if (error instanceof CompletionError && error.retryAfter)
+      reply.header("Retry-After", error.retryAfter);
+    return reply
+      .code(status)
+      .send(
+        openAIError(
+          new BridgeError(
+            code,
+            error instanceof BridgeError
+              ? error.message
+              : status < 500
+                ? "Request validation failed"
+                : "Request could not be completed",
+            status,
+          ),
+          req.id,
+        ),
+      );
   });
+  app.setNotFoundHandler(() => {
+    throw new BridgeError("not_found", "Endpoint not found", 404);
+  });
+  registerOpenAI(app, d, requireScope);
   app.addHook("onRequest", async (req, reply) => {
     let hostname: string;
     try {
@@ -140,6 +147,7 @@ export function createHttpService(d: HttpDependencies) {
     if (origin)
       reply
         .header("Access-Control-Allow-Origin", origin)
+        .header("Access-Control-Expose-Headers", "X-Bridge-Job-Id, Retry-After")
         .header("Vary", "Origin");
     if (req.method === "OPTIONS" && origin) {
       reply
@@ -173,7 +181,7 @@ export function createHttpService(d: HttpDependencies) {
     // Polling must never starve leases or an operator's stop request.
     const path = req.url.split("?")[0]!;
     const traffic =
-      req.method === "POST" && path.startsWith("/v1/hosts/")
+      req.method === "POST" && path.startsWith("/v1/bridge/hosts/")
         ? "lease"
         : req.method === "POST" &&
             /\/(?:cancel|pause|resume|stop|stopped)$/.test(path)
@@ -205,11 +213,11 @@ export function createHttpService(d: HttpDependencies) {
     clearInterval(reaper);
     streams.close();
   });
-  app.get("/v1/status", async (req) => {
+  app.get("/v1/bridge/status", async (req) => {
     const p = requireScope(req, "read");
     return {
       version: "0.1.0",
-      protocolVersion: 1,
+      protocolVersion: 2,
       eventCursorFloor: d.store.eventFloor(),
       permissionMode: "bypassPermissions",
       execution: "local-claude-code",
@@ -229,23 +237,7 @@ export function createHttpService(d: HttpDependencies) {
       ...(p.owner ? d.diagnostics?.() : {}),
     };
   });
-  app.post("/v1/jobs", async (req, reply) => {
-    const p = requireScope(req, "submit"),
-      input = jobInputSchema.parse(req.body);
-    if (
-      !d.config.profiles[input.profile] ||
-      (!p.owner && !p.profiles.includes(input.profile))
-    )
-      throw new BridgeError(
-        "profile_forbidden",
-        "Profile is not available",
-        403,
-      );
-    const job = d.store.submit(input, p, key(req));
-    d.scheduler.wake();
-    return reply.code(202).send(job);
-  });
-  app.get("/v1/jobs", async (req) => {
+  app.get("/v1/bridge/jobs", async (req) => {
     const p = requireScope(req, "read");
     const q = z
       .strictObject({
@@ -260,10 +252,10 @@ export function createHttpService(d: HttpDependencies) {
       nextCursor: jobs.length === q.limit ? jobs.at(-1)?.id : null,
     };
   });
-  app.get("/v1/jobs/:id", async (req) =>
+  app.get("/v1/bridge/jobs/:id", async (req) =>
     d.store.get(id(req), requireScope(req, "read")),
   );
-  app.get("/v1/jobs/:id/attempts", async (req) => ({
+  app.get("/v1/bridge/jobs/:id/attempts", async (req) => ({
     attempts: d.store.attempts(id(req), requireScope(req, "read")).map((a) => ({
       id: a.id,
       jobId: a.jobId,
@@ -272,12 +264,12 @@ export function createHttpService(d: HttpDependencies) {
       updatedAt: a.updatedAt,
     })),
   }));
-  app.post("/v1/jobs/:id/pause", async (req) => {
+  app.post("/v1/bridge/jobs/:id/pause", async (req) => {
     const job = d.store.pause(id(req), requireScope(req, "control"));
     d.scheduler.wake();
     return job;
   });
-  app.post("/v1/jobs/:id/resume", async (req) => {
+  app.post("/v1/bridge/jobs/:id/resume", async (req) => {
     const p = requireScope(req, "control"),
       job = d.store.get(id(req), p);
     if (job.workflowRunId && d.flows.get(job.workflowRunId, p).pauseRequested)
@@ -290,7 +282,7 @@ export function createHttpService(d: HttpDependencies) {
     d.scheduler.wake();
     return resumed;
   });
-  app.get("/v1/jobs/:id/result", async (req, reply) => {
+  app.get("/v1/bridge/jobs/:id/result", async (req, reply) => {
     const job = d.store.get(id(req), requireScope(req, "read"));
     return reply.code(terminal.has(job.status) ? 200 : 202).send({
       id: job.id,
@@ -299,11 +291,11 @@ export function createHttpService(d: HttpDependencies) {
       error: job.error,
     });
   });
-  app.get("/v1/jobs/:id/messages", async (req) => {
+  app.get("/v1/bridge/jobs/:id/messages", async (req) => {
     const job = d.store.get(id(req), requireScope(req, "read"));
     return { messages: job.messages, pending: job.pendingMessages ?? [] };
   });
-  app.post("/v1/jobs/:id/messages", async (req, reply) => {
+  app.post("/v1/bridge/jobs/:id/messages", async (req, reply) => {
     const p = requireScope(req, "submit");
     const { text } = z
       .strictObject({ text: z.string().trim().min(1).max(100000) })
@@ -315,12 +307,12 @@ export function createHttpService(d: HttpDependencies) {
     d.scheduler.wake();
     return reply.code(202).send(updated);
   });
-  app.post("/v1/jobs/:id/cancel", async (req) => {
+  app.post("/v1/bridge/jobs/:id/cancel", async (req) => {
     const job = d.store.cancel(id(req), requireScope(req, "control"));
     d.scheduler.wake();
     return job;
   });
-  app.post("/v1/jobs/:id/retry", async (req, reply) => {
+  app.post("/v1/bridge/jobs/:id/retry", async (req, reply) => {
     const p = requireScope(req, "control");
     const job = d.store.get(id(req), p);
     if (!p.owner && !p.profiles.includes(job.profile))
@@ -329,7 +321,7 @@ export function createHttpService(d: HttpDependencies) {
     d.scheduler.wake();
     return reply.code(202).send(updated);
   });
-  app.get("/v1/events", async (req, reply) => {
+  app.get("/v1/bridge/events", async (req, reply) => {
     const p = requireScope(req, "read");
     const raw = req.headers["last-event-id"] ?? String(d.store.eventFloor());
     const cursor = z.coerce
@@ -340,7 +332,7 @@ export function createHttpService(d: HttpDependencies) {
       .parse(raw);
     streams.open(reply, p, req.headers.authorization!.slice(7), cursor);
   });
-  app.post("/v1/workflow-runs", async (req, reply) => {
+  app.post("/v1/bridge/workflow-runs", async (req, reply) => {
     const p = requireScope(req, "workflows");
     const input = z
       .strictObject({
@@ -352,33 +344,33 @@ export function createHttpService(d: HttpDependencies) {
     d.scheduler.wake();
     return reply.code(202).send(run);
   });
-  app.get("/v1/workflow-runs", async (req) => ({
+  app.get("/v1/bridge/workflow-runs", async (req) => ({
     runs: d.flows.list(requireScope(req, "read")),
   }));
-  app.get("/v1/workflow-runs/:id", async (req) =>
+  app.get("/v1/bridge/workflow-runs/:id", async (req) =>
     d.flows.get(id(req), requireScope(req, "read")),
   );
-  app.post("/v1/workflow-runs/:id/cancel", async (req) => {
+  app.post("/v1/bridge/workflow-runs/:id/cancel", async (req) => {
     const run = d.flows.cancel(id(req), requireScope(req, "control"));
     d.scheduler.wake();
     return run;
   });
-  app.post("/v1/workflow-runs/:id/pause", async (req) => {
+  app.post("/v1/bridge/workflow-runs/:id/pause", async (req) => {
     const run = d.flows.pause(id(req), requireScope(req, "control"));
     d.scheduler.wake();
     return run;
   });
-  app.post("/v1/workflow-runs/:id/resume", async (req) => {
+  app.post("/v1/bridge/workflow-runs/:id/resume", async (req) => {
     const run = d.flows.resume(id(req), requireScope(req, "control"));
     d.scheduler.wake();
     return run;
   });
-  app.post("/v1/admin/pause", async (req) => {
+  app.post("/v1/bridge/admin/pause", async (req) => {
     owner(req);
     d.scheduler.pause();
     return d.scheduler.controlState;
   });
-  app.post("/v1/admin/resume", async (req) => {
+  app.post("/v1/bridge/admin/resume", async (req) => {
     owner(req);
     if ((d.scheduler.controlState.retryAt ?? 0) > Date.now())
       throw new BridgeError(
@@ -389,16 +381,16 @@ export function createHttpService(d: HttpDependencies) {
     d.scheduler.resume();
     return d.scheduler.controlState;
   });
-  app.post("/v1/admin/stop", async (req) => {
+  app.post("/v1/bridge/admin/stop", async (req) => {
     owner(req);
     d.shutdown?.();
     return { stopping: true };
   });
-  app.get("/v1/admin/tokens", async (req) => {
+  app.get("/v1/bridge/admin/tokens", async (req) => {
     owner(req);
     return { tokens: d.auth.list() };
   });
-  app.post("/v1/admin/tokens", async (req) => {
+  app.post("/v1/bridge/admin/tokens", async (req) => {
     owner(req);
     const input = z
       .strictObject({
@@ -416,7 +408,7 @@ export function createHttpService(d: HttpDependencies) {
       throw new BridgeError("profile_unknown", "Unknown profile");
     return d.auth.create({ ...input, owner: false });
   });
-  app.post("/v1/admin/tokens/revoke", async (req) => {
+  app.post("/v1/bridge/admin/tokens/revoke", async (req) => {
     owner(req);
     const input = z
       .strictObject({ id: z.string().refine((x) => x !== "owner") })
@@ -424,7 +416,7 @@ export function createHttpService(d: HttpDependencies) {
     d.auth.revoke(input.id);
     return { revoked: true };
   });
-  app.post("/v1/hosts/heartbeat", async (req) => {
+  app.post("/v1/bridge/hosts/heartbeat", async (req) => {
     owner(req);
     const input = z
       .strictObject({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,100}$/) })
@@ -433,20 +425,20 @@ export function createHttpService(d: HttpDependencies) {
     channels.heartbeat(input.id);
     return { expiresInMs: 7000 };
   });
-  app.post("/v1/hosts/disconnect", async (req) => {
+  app.post("/v1/bridge/hosts/disconnect", async (req) => {
     owner(req);
     const input = z.strictObject({ id: z.string().max(100) }).parse(req.body);
     d.disconnect?.(input.id);
     channels.disconnect(input.id);
     return { disconnected: true };
   });
-  app.get("/v1/channel/pending", async (req) => {
+  app.get("/v1/bridge/channel/pending", async (req) => {
     owner(req);
     return {
       jobs: d.scheduler.controlState.paused ? [] : d.store.pending("channel"),
     };
   });
-  app.post("/v1/channel/claim", async (req) => {
+  app.post("/v1/bridge/channel/claim", async (req) => {
     owner(req);
     if (d.scheduler.controlState.paused)
       throw new BridgeError("scheduler_paused", "The scheduler is paused", 409);
@@ -481,11 +473,11 @@ export function createHttpService(d: HttpDependencies) {
     d.flows.replaceTemplates(next.workflows);
     d.config.workflows = next.workflows;
   };
-  app.get("/v1/admin/templates", async (req) => {
+  app.get("/v1/bridge/admin/templates", async (req) => {
     owner(req);
     return { templates: d.flows.templates };
   });
-  app.put("/v1/admin/templates/:templateId", async (req) => {
+  app.put("/v1/bridge/admin/templates/:templateId", async (req) => {
     owner(req);
     const { templateId } = z
       .strictObject({ templateId: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/) })
@@ -501,7 +493,7 @@ export function createHttpService(d: HttpDependencies) {
     updateTemplates(next);
     return template;
   });
-  app.delete("/v1/admin/templates/:templateId", async (req) => {
+  app.delete("/v1/bridge/admin/templates/:templateId", async (req) => {
     owner(req);
     const { templateId } = z
       .strictObject({ templateId: z.string() })
@@ -511,21 +503,21 @@ export function createHttpService(d: HttpDependencies) {
     updateTemplates(d.flows.templates.filter((t) => t.id !== templateId));
     return { deleted: true };
   });
-  app.post("/v1/channel/progress", async (req) => {
+  app.post("/v1/bridge/channel/progress", async (req) => {
     owner(req);
     const b = z
       .strictObject({ ...receipt, text: z.string().max(16000) })
       .parse(req.body);
     return channels.progress(b.hostId, b.attemptId, b.fence, b.text);
   });
-  app.post("/v1/channel/complete", async (req) => {
+  app.post("/v1/bridge/channel/complete", async (req) => {
     owner(req);
     const b = z
       .strictObject({ ...receipt, result: z.string().max(100000) })
       .parse(req.body);
     return channels.complete(b.hostId, b.attemptId, b.fence, b.result);
   });
-  app.post("/v1/channel/stopped", async (req) => {
+  app.post("/v1/bridge/channel/stopped", async (req) => {
     owner(req);
     const b = z.strictObject(receipt).parse(req.body);
     return channels.acknowledgeStop(b.hostId, b.attemptId, b.fence);

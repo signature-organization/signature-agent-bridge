@@ -18,7 +18,7 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { z } from "zod";
-import { jobInputSchema } from "../src/contracts.js";
+import { chatRequestSchema } from "../src/completion-protocol.js";
 import { templateSchema } from "../src/config.js";
 const str = { type: "string" },
   uuid = { type: "string", format: "uuid" };
@@ -30,7 +30,49 @@ const ref = (name: string) => ({ $ref: "#/components/schemas/" + name });
 const json = (schema: unknown) => ({ "application/json": { schema } });
 const receipt = { hostId: str, attemptId: uuid, fence: uuid };
 const schemas: Record<string, unknown> = {
-  JobInput: z.toJSONSchema(jobInputSchema),
+  ChatRequest: z.toJSONSchema(chatRequestSchema, { io: "input" }),
+  ChatCompletion: object(
+    {
+      id: str,
+      object: { const: "chat.completion" },
+      created: { type: "integer" },
+      model: str,
+      choices: {
+        type: "array",
+        items: object({
+          index: { type: "integer" },
+          message: {
+            type: "object",
+            properties: {
+              role: { const: "assistant" },
+              content: { type: ["string", "null"] },
+              tool_calls: { type: "array", items: { type: "object" } },
+            },
+          },
+          finish_reason: { enum: ["stop", "tool_calls"] },
+        }),
+      },
+      usage: ref("Usage"),
+    },
+    ["id", "object", "created", "model", "choices"],
+  ),
+  Usage: object({
+    prompt_tokens: { type: "integer" },
+    completion_tokens: { type: "integer" },
+    total_tokens: { type: "integer" },
+  }),
+  Models: object({
+    object: { const: "list" },
+    data: {
+      type: "array",
+      items: object({
+        id: str,
+        object: { const: "model" },
+        created: { type: "integer" },
+        owned_by: str,
+      }),
+    },
+  }),
   Template: z.toJSONSchema(templateSchema),
   Job: {
     type: "object",
@@ -56,6 +98,8 @@ const schemas: Record<string, unknown> = {
       },
       sessionId: uuid,
       result: str,
+      completion: ref("ChatRequest"),
+      usage: ref("Usage"),
       error: str,
       retryAt: {
         type: "integer",
@@ -67,22 +111,34 @@ const schemas: Record<string, unknown> = {
       subagents: { type: "object" },
     },
   },
-  Error: object({ error: object({ code: str, message: str, requestId: str }) }),
+  Error: object({
+    error: object(
+      {
+        code: str,
+        message: str,
+        type: str,
+        param: { type: "null" },
+        requestId: str,
+        job_id: uuid,
+      },
+      ["code", "message", "type", "param"],
+    ),
+  }),
 };
 const paths: Record<string, Record<string, unknown>> = {};
-for (const match of readFileSync("src/http.ts", "utf8").matchAll(
-  /app\.(get|post|put|delete)\(\s*["'](\/v1\/[^"']+)["']/g,
-)) {
+for (const match of (
+  readFileSync("src/http.ts", "utf8") + readFileSync("src/openai.ts", "utf8")
+).matchAll(/app\.(get|post|put|delete)\(\s*["'](\/v1\/[^"']+)["']/g)) {
   const method = match[1]!,
     path = match[2]!.replace(/:([A-Za-z]+)/g, "{$1}");
-  const admin = /\/v1\/(admin|hosts|channel)\//.test(path);
+  const admin = /\/v1\/bridge\/(admin|hosts|channel)\//.test(path);
   const parameters: unknown[] = [...path.matchAll(/\{([^}]+)\}/g)].map((m) => ({
     name: m[1],
     in: "path",
     required: true,
     schema: m[1] === "id" ? uuid : str,
   }));
-  if (path === "/v1/jobs" && method === "get")
+  if (path === "/v1/bridge/jobs" && method === "get")
     parameters.push(
       {
         name: "limit",
@@ -98,14 +154,18 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
     );
   if (
     method === "post" &&
-    ["/v1/jobs", "/v1/jobs/{id}/messages", "/v1/workflow-runs"].includes(path)
+    [
+      "/v1/chat/completions",
+      "/v1/bridge/jobs/{id}/messages",
+      "/v1/bridge/workflow-runs",
+    ].includes(path)
   )
     parameters.push({
       name: "Idempotency-Key",
       in: "header",
       schema: { type: "string", maxLength: 128 },
     });
-  if (path === "/v1/events")
+  if (path === "/v1/bridge/events")
     parameters.push({
       name: "Last-Event-ID",
       in: "header",
@@ -115,17 +175,17 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
   let input: unknown;
   if (method === "post" || method === "put") {
     input = { type: "object", additionalProperties: false };
-    if (path === "/v1/jobs") input = ref("JobInput");
-    if (path === "/v1/jobs/{id}/messages")
+    if (path === "/v1/chat/completions") input = ref("ChatRequest");
+    if (path === "/v1/bridge/jobs/{id}/messages")
       input = object({
         text: { type: "string", minLength: 1, maxLength: 100000 },
       });
-    if (path === "/v1/workflow-runs")
+    if (path === "/v1/bridge/workflow-runs")
       input = object({
         templateId: str,
         inputs: { type: "object", additionalProperties: str },
       });
-    if (path === "/v1/admin/tokens")
+    if (path === "/v1/bridge/admin/tokens")
       input = object({
         id: { type: "string", pattern: "^[a-zA-Z0-9_-]{1,64}$" },
         profiles: { type: "array", minItems: 1, items: str },
@@ -135,46 +195,53 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
           items: { enum: ["read", "submit", "control", "workflows"] },
         },
       });
-    if (path === "/v1/admin/tokens/revoke" || path.startsWith("/v1/hosts/"))
+    if (
+      path === "/v1/bridge/admin/tokens/revoke" ||
+      path.startsWith("/v1/bridge/hosts/")
+    )
       input = object({ id: str });
-    if (path.startsWith("/v1/admin/templates/")) input = ref("Template");
-    if (path === "/v1/channel/claim")
+    if (path.startsWith("/v1/bridge/admin/templates/")) input = ref("Template");
+    if (path === "/v1/bridge/channel/claim")
       input = object({ hostId: str, jobId: uuid });
-    if (path === "/v1/channel/progress")
+    if (path === "/v1/bridge/channel/progress")
       input = object({
         ...receipt,
         text: { type: "string", maxLength: 16000 },
       });
-    if (path === "/v1/channel/complete")
+    if (path === "/v1/bridge/channel/complete")
       input = object({
         ...receipt,
         result: { type: "string", maxLength: 100000 },
       });
-    if (path === "/v1/channel/stopped") input = object(receipt);
+    if (path === "/v1/bridge/channel/stopped") input = object(receipt);
   }
   const scope = admin
     ? "owner"
     : method === "get"
       ? "read"
-      : path === "/v1/workflow-runs"
+      : path === "/v1/bridge/workflow-runs"
         ? "workflows"
-        : path === "/v1/jobs" || path.endsWith("/messages")
-          ? "submit"
-          : "control";
+        : path === "/v1/chat/completions"
+          ? "read + submit"
+          : path.endsWith("/messages")
+            ? "submit"
+            : "control";
   const accepted =
     method === "post" &&
     [
-      "/v1/jobs",
-      "/v1/jobs/{id}/messages",
-      "/v1/jobs/{id}/retry",
-      "/v1/workflow-runs",
+      "/v1/bridge/jobs/{id}/messages",
+      "/v1/bridge/jobs/{id}/retry",
+      "/v1/bridge/workflow-runs",
     ].includes(path);
   const responseSchema =
-    path === "/v1/jobs/{id}" ||
-    (path === "/v1/jobs" && method === "post") ||
+    path === "/v1/bridge/jobs/{id}" ||
     /\/jobs\/\{id\}\/(pause|resume|cancel|retry)$/.test(path)
       ? ref("Job")
-      : { type: "object" };
+      : path === "/v1/models"
+        ? ref("Models")
+        : path === "/v1/chat/completions"
+          ? ref("ChatCompletion")
+          : { type: "object" };
   const operation: Record<string, unknown> = {
     operationId:
       method +
@@ -185,13 +252,15 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
       scope +
       " authorization. See api.md for lifecycle semantics, errors, and response fields.",
     tags: [
-      admin
-        ? "Administration"
-        : path.includes("workflow")
-          ? "Workflows"
-          : path.includes("events")
-            ? "Events"
-            : "Jobs",
+      path === "/v1/chat/completions" || path === "/v1/models"
+        ? "OpenAI compatibility"
+        : admin
+          ? "Administration"
+          : path.includes("workflow")
+            ? "Workflows"
+            : path.includes("events")
+              ? "Events"
+              : "Jobs",
     ],
     "x-required-scope": scope,
     parameters,
@@ -201,7 +270,7 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
           ? "Accepted for asynchronous execution"
           : "Successful response",
         content:
-          path === "/v1/events"
+          path === "/v1/bridge/events"
             ? { "text/event-stream": { schema: { type: "string" } } }
             : json(responseSchema),
       },
@@ -211,6 +280,40 @@ for (const match of readFileSync("src/http.ts", "utf8").matchAll(
       },
     },
   };
+  if (path === "/v1/chat/completions") {
+    const responses = operation.responses as Record<string, unknown>;
+    const headers = {
+      "X-Bridge-Job-Id": {
+        description: "Durable job ID for console and recovery",
+        schema: uuid,
+      },
+    };
+    responses["200"] = {
+      description:
+        "Validated completion JSON or buffered OpenAI SSE. Keepalive comments precede the final chunks; data: [DONE] ends the stream.",
+      headers,
+      content: {
+        ...json(ref("ChatCompletion")),
+        "text/event-stream": { schema: { type: "string" } },
+      },
+    };
+    responses["202"] = {
+      description: "bridge.background=true: durable job receipt",
+      headers,
+      content: json(ref("Job")),
+    };
+    responses["429"] = {
+      description:
+        "Admission bound or subscription limit. A paused admitted job is retained.",
+      headers: {
+        "Retry-After": {
+          schema: { type: "integer" },
+          description: "Seconds until a known provider reset",
+        },
+      },
+      content: json(ref("Error")),
+    };
+  }
   if (path.endsWith("/result"))
     (operation.responses as Record<string, unknown>)["202"] = {
       description: "Job is not terminal yet.",
@@ -225,7 +328,7 @@ const spec = {
     title: "Signature Agent Bridge API",
     version: JSON.parse(readFileSync("package.json", "utf8")).version,
     description:
-      "Authenticated local orchestration with REST commands and durable SSE notifications. Copyright 2026 Signature Management Consultants SLU. Author @ancongui.",
+      "OpenAI-compatible Chat Completions and unified /v1/bridge orchestration extensions. Copyright 2026 Signature Management Consultants SLU. Author @ancongui.",
     license: { name: "Apache-2.0", identifier: "Apache-2.0" },
   },
   servers: [{ url: "http://127.0.0.1:8766" }],

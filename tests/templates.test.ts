@@ -43,7 +43,7 @@ it("validates and persists owner templates while preserving existing run snapsho
     "content-type": "application/json",
   };
   const put = (body: unknown) =>
-    fetch(service.address + "/v1/admin/templates/review", {
+    fetch(service.address + "/v1/bridge/admin/templates/review", {
       method: "PUT",
       headers,
       body: JSON.stringify(body),
@@ -64,7 +64,7 @@ it("validates and persists owner templates while preserving existing run snapsho
         .id,
     ).toBe("review");
     const start = () =>
-      fetch(service.address + "/v1/workflow-runs", {
+      fetch(service.address + "/v1/bridge/workflow-runs", {
         method: "POST",
         headers: { ...headers, "idempotency-key": "workflow-request" },
         body: JSON.stringify({
@@ -90,12 +90,14 @@ it("validates and persists owner templates while preserving existing run snapsho
       ).status,
     ).toBe(200);
     const saved = (await (
-      await fetch(service.address + "/v1/workflow-runs/" + run.id, { headers })
+      await fetch(service.address + "/v1/bridge/workflow-runs/" + run.id, {
+        headers,
+      })
     ).json()) as { template: typeof original };
     expect(saved.template.steps[0]!.prompt).toBe(original.steps[0]!.prompt);
     expect(
       (
-        await fetch(service.address + "/v1/admin/templates/review", {
+        await fetch(service.address + "/v1/bridge/admin/templates/review", {
           method: "DELETE",
           headers,
           body: "{}",

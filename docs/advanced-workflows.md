@@ -23,7 +23,7 @@ The complete definition is [advanced-development.json](../examples/workflow-temp
 From a clone of this repository, with the owner token loaded as described in [Tokens](tokens.md):
 
 ```sh
-curl --fail-with-body -X PUT "$BRIDGE_URL/v1/admin/templates/advanced-development" \
+curl --fail-with-body -X PUT "$BRIDGE_URL/v1/bridge/admin/templates/advanced-development" \
   -H "Authorization: Bearer $BRIDGE_OWNER_TOKEN" \
   -H "Content-Type: application/json" \
   --data-binary @examples/workflow-templates/advanced-development.json
@@ -68,14 +68,14 @@ Select **Start workflow**. Open each step to inspect its conversation, results, 
 An application uses its scoped `BRIDGE_TOKEN`:
 
 ```sh
-curl --fail-with-body "$BRIDGE_URL/v1/workflow-runs" \
+curl --fail-with-body "$BRIDGE_URL/v1/bridge/workflow-runs" \
   -H "Authorization: Bearer $BRIDGE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: timeout-feature-001" \
   -d '{"templateId":"advanced-development","inputs":{"projectDir":"/absolute/path/to/my-project","objective":"Add a configurable timeout to the download command and test it."}}'
 ```
 
-Use a new idempotency key for a new request. Observe the run through `GET /v1/workflow-runs/{id}`, its linked jobs, and `GET /v1/events`.
+Use a new idempotency key for a new request. Observe the run through `GET /v1/bridge/workflow-runs/{id}`, its linked jobs, and `GET /v1/bridge/events`.
 
 ## 5. Control and recover the run
 

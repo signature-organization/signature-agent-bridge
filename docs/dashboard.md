@@ -2,7 +2,7 @@
 
 [README](../README.md) · [Install](installation.md) · [Operations](operations.md)
 
-The console is served by the local bridge. Open the URL returned by `bridge_panel` and authenticate with a bridge token. It uses the same REST and SSE interfaces as other applications.
+The console is served by the local bridge. Open the URL returned by `bridge_panel` and authenticate with a bridge token. It submits through `/v1/chat/completions` and uses the same `/v1/bridge` management and notification extensions as other applications.
 
 The screenshots below come from the running application with deterministic fixtures. They illustrate UI behavior without claiming the sample tasks were real production work.
 
@@ -12,11 +12,19 @@ Select a row to inspect messages, attempts, session continuity, and reported chi
 
 ![Job queue and conversation on desktop](../assets/screenshots/dashboard-desktop.png)
 
-**New job** opens a focused dialog. Choose a configured profile and either an automatic Claude Code worker or the current host conversation.
+**New job** opens a focused dialog. Choose a configured profile and an automatic Claude Code worker, a Chat Completion, or the current host conversation.
 
 ![New-job dialog](../assets/screenshots/new-job-desktop.png)
 
 Pause, resume, cancel, and retry are shown according to the job's state. Retry is explicitly different from resume: it starts a new session and can repeat prior effects.
+
+## Chat Completions
+
+SDK requests and console-created completions appear in the same queue. Select one to inspect its submitted message history, validated answer or client function requests, observed token usage, and execution attempts. The inference view hides native follow-up controls because the calling application supplies complete history for its next model turn.
+
+![A completion and its observed usage](../assets/screenshots/completion-desktop.png)
+
+[Mobile completion view](../assets/screenshots/completion-mobile.png)
 
 ## Workflows
 
@@ -36,7 +44,7 @@ Use **New template** to define inputs, ordered steps, instructions, and executio
 
 ## Diagnostics and application access
 
-Service health explains login readiness, dispatch state, active jobs, connected hosts, profiles, and the workspace. Expand **Technical details** for the full status payload.
+Service health explains login readiness, dispatch state, active jobs, connected hosts, profiles, OpenAI base URL, model aliases, and the workspace. Expand **Technical details** for the full status payload.
 
 Create a separate token for each trusted application. New tokens are displayed once in the panel; revocation immediately invalidates requests and active event streams.
 

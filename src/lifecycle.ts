@@ -98,7 +98,7 @@ export async function connect(dataDir: string): Promise<Connection> {
   if (url.protocol !== "http:" || url.hostname !== "127.0.0.1")
     throw new Error("Invalid local service address");
   const token = readFileSync(join(dataDir, "owner.token"), "utf8").trim();
-  const response = await fetch(info.address + "/v1/status", {
+  const response = await fetch(info.address + "/v1/bridge/status", {
     headers: { Authorization: "Bearer " + token },
     signal: AbortSignal.timeout(1500),
   });
@@ -107,7 +107,7 @@ export async function connect(dataDir: string): Promise<Connection> {
     instanceId: string;
     protocolVersion: number;
   };
-  if (status.instanceId !== info.instanceId || status.protocolVersion !== 1)
+  if (status.instanceId !== info.instanceId || status.protocolVersion !== 2)
     throw new Error("Bridge service identity or protocol does not match");
   return { address: info.address, token };
 }

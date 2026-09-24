@@ -20,6 +20,11 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Outcome } from "./contracts.js";
 import type { Execution, Worker, WorkerEvent } from "./worker.js";
+import {
+  completionEnvelopeSchema,
+  completionSystemPrompt,
+  parseCompletionResult,
+} from "./completion-protocol.js";
 const execute = promisify(execFile);
 const pause = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -128,14 +133,25 @@ export class ClaudeWorker implements Worker {
       "--mcp-config",
       '{"mcpServers":{}}',
       "--tools",
-      this.options.tools.join(","),
+      input.job.completion ? "" : this.options.tools.join(","),
       "--disable-slash-commands",
     ];
     if (this.options.model) args.push("--model", this.options.model);
     if (this.options.maxTurns)
       args.push("--max-turns", String(this.options.maxTurns));
-    if (this.options.agents && Object.keys(this.options.agents).length)
+    if (
+      !input.job.completion &&
+      this.options.agents &&
+      Object.keys(this.options.agents).length
+    )
       args.push("--agents", JSON.stringify(this.options.agents));
+    if (input.job.completion)
+      args.push(
+        "--json-schema",
+        JSON.stringify(completionEnvelopeSchema),
+        "--system-prompt",
+        completionSystemPrompt,
+      );
     if (input.job.sessionId) args.push("--resume", input.job.sessionId);
     // Claude owns transcript compaction. Reconstructing its history would lose tool state and repeat work.
     const prompt = input.job.sessionId
@@ -204,6 +220,13 @@ export class ClaudeWorker implements Worker {
             subtype?: string;
             is_error?: boolean;
             result?: string;
+            structured_output?: unknown;
+            usage?: {
+              input_tokens: number;
+              output_tokens: number;
+              cache_read_input_tokens?: number;
+              cache_creation_input_tokens?: number;
+            };
             errors?: string[];
             session_id?: string;
             status?: string | null;
@@ -297,6 +320,21 @@ export class ClaudeWorker implements Worker {
           if (message.error === "rate_limit") quota = true;
           if (message.type === "result") {
             if (
+              input.job.completion &&
+              message.subtype === "success" &&
+              !message.is_error
+            ) {
+              const encoded = JSON.stringify(message.structured_output);
+              try {
+                parseCompletionResult(encoded, input.job.completion);
+                message.result = encoded;
+              } catch {
+                fault =
+                  "invalid_completion: Claude returned invalid structured output";
+                return;
+              }
+            }
+            if (
               message.is_error ||
               message.subtype !== "success" ||
               typeof message.result !== "string"
@@ -318,6 +356,28 @@ export class ClaudeWorker implements Worker {
                 result: message.result,
                 sessionId: message.session_id,
               };
+            if (result && message.usage) {
+              const usage = message.usage;
+              const counts = [
+                usage.input_tokens,
+                usage.output_tokens,
+                usage.cache_read_input_tokens ?? 0,
+                usage.cache_creation_input_tokens ?? 0,
+              ] as const;
+              if (
+                counts.every(
+                  (n) =>
+                    typeof n === "number" && Number.isSafeInteger(n) && n >= 0,
+                )
+              ) {
+                const promptTokens = counts[0] + counts[2] + counts[3];
+                result.usage = {
+                  prompt_tokens: promptTokens,
+                  completion_tokens: counts[1],
+                  total_tokens: promptTokens + counts[1],
+                };
+              }
+            }
           } else if (message.type === "assistant")
             for (const block of message.message?.content ?? [])
               if (block.type === "text" && block.text)

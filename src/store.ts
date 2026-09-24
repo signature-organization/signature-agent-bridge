@@ -128,7 +128,12 @@ export class QueueStore {
     if (row.n >= this.capacity)
       throw new BridgeError("queue_full", "Queue capacity reached", 429);
   }
-  submit(raw: unknown, p: Principal, key?: string): Job {
+  submit(
+    raw: unknown,
+    p: Principal,
+    key?: string,
+    completion?: Job["completion"],
+  ): Job {
     const input = jobInputSchema.parse(raw);
     if (!p.owner && !p.profiles.includes(input.profile))
       throw new BridgeError(
@@ -140,12 +145,13 @@ export class QueueStore {
       p,
       "jobs",
       key,
-      input,
+      { ...input, completion },
       () => {
         this.checkCapacity();
         const now = stamp();
         const job: Job = {
           ...input,
+          ...(completion ? { completion } : {}),
           id: randomUUID(),
           principalId: p.id,
           status: "queued",
@@ -413,6 +419,7 @@ export class QueueStore {
       this.checkCapacity();
       job.status = "queued";
       delete job.result;
+      delete job.usage;
       delete job.error;
       delete job.sessionId;
       delete job.resumePending;
@@ -436,6 +443,12 @@ export class QueueStore {
       { text },
       () => {
         const job = this.get(id, p);
+        if (job.completion)
+          throw new BridgeError(
+            "completion_history",
+            "Send the complete message history to /v1/chat/completions for a new turn",
+            409,
+          );
         if (job.workflowRunId)
           throw new BridgeError(
             "workflow_message",

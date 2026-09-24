@@ -71,7 +71,7 @@ async function call(path: string, body?: unknown) {
 }
 async function finish(id: string) {
   for (let i = 0; i < 120; i++) {
-    const job = await call("/v1/jobs/" + id);
+    const job = await call("/v1/bridge/jobs/" + id);
     if (
       [
         "succeeded",
@@ -89,8 +89,14 @@ async function finish(id: string) {
   }
   throw new Error("Live smoke timed out");
 }
+const submit = (body: { prompt: string; profile?: string; mode?: string }) =>
+  call("/v1/chat/completions", {
+    model: "bridge/" + (body.profile ?? "default"),
+    messages: [{ role: "user", content: body.prompt }],
+    bridge: { execution: "agent", background: true },
+  });
 try {
-  const job = await call("/v1/jobs", {
+  const job = await submit({
     prompt:
       "Use Write to create bridge-smoke.txt containing exactly BRIDGE_OK. Read it with Read. Reply exactly BRIDGE_OK.",
     mode: "cli",
@@ -103,7 +109,7 @@ try {
     ).trim() !== "BRIDGE_OK"
   )
     throw new Error("Expected real file was not created");
-  await call("/v1/jobs/" + job.id + "/messages", {
+  await call("/v1/bridge/jobs/" + job.id + "/messages", {
     text: "Continue this same session: read bridge-smoke.txt, then write resumed.txt containing exactly RESUMED_OK. Reply exactly RESUMED_OK.",
   });
   const resumed = await finish(job.id);
@@ -116,7 +122,7 @@ try {
     ).trim() !== "RESUMED_OK"
   )
     throw new Error("Continuation did not create the expected file");
-  const child = await call("/v1/jobs", {
+  const child = await submit({
     prompt:
       "Use Agent to ask the checker subagent to return the number 7. Then use Write to save child-smoke.txt containing exactly 7. Reply exactly CHILD_OK.",
     profile: "delegation",

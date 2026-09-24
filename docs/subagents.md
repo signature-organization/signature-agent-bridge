@@ -38,13 +38,15 @@ Choose **New job → Execution profile: code-workflow → Automatic Claude Code 
 ## Launch from an application
 
 ```sh
-curl --fail-with-body "$BRIDGE_URL/v1/jobs" \
+curl --fail-with-body "$BRIDGE_URL/v1/chat/completions" \
   -H "Authorization: Bearer $BRIDGE_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"profile":"code-workflow","mode":"cli","prompt":"Use Agent to delegate a read-only review of /absolute/path/to/project to the reviewer subagent. Return findings with file paths and evidence."}'
+  -d '{"model":"bridge/code-workflow","messages":[{"role":"user","content":"Use Agent to delegate a read-only review of /absolute/path/to/project to the reviewer subagent. Return findings with file paths and evidence."}],"bridge":{"execution":"agent","background":true}}'
 ```
 
-The client token must include `submit` and allow `code-workflow`. Add `read` to inspect results/events and `control` for execution controls.
+Standard inference requests disable native Agent tools; use `bridge.execution: "agent"` for delegation. Client-side Pydantic AI functions are a separate execution mechanism explained in the [SDK guide](openai-compatible.md).
+
+The client token must include `read` and `submit` and allow `code-workflow`. Add `read` to inspect results/events and `control` for execution controls.
 
 ## Observe and control
 

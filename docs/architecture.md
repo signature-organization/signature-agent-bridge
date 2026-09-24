@@ -8,17 +8,30 @@
 
 ## Follow a request from start to finish
 
-| Stage    | Client / caller                                                       | Signature Agent Bridge                                                           | Claude                                                                                |
-| -------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Start    | An application, script, or browser prepares a prompt                  | A host-loaded MCP adapter starts or discovers the local service                  | The official executable is installed and authenticated by its user                    |
-| Submit   | Sends a REST request with a bridge token and optional idempotency key | Authenticates, validates the profile, and commits the job to SQLite              | No model execution has started yet                                                    |
-| Execute  | Receives a job ID and can subscribe to events                         | Claims an exclusive attempt and starts the official CLI with the prompt on stdin | Uses the user's subscription, runs tools, and manages its own subagents and context   |
-| Observe  | Receives SSE progress and can inspect the job over REST               | Persists structured observations before publishing them                          | Emits output, compaction boundaries, child-task updates, limits, and its final result |
-| Continue | Sends a follow-up or pause/resume command                             | Coordinates the state transition, session ID, and next workflow step             | Resumes its native conversation when requested                                        |
+| Stage     | Client / caller                                                                                     | Signature Agent Bridge                                                                  | Claude                                                                                                   |
+| --------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Start     | Configure an SDK, open the console, or use host MCP tools                                           | The host-loaded MCP adapter starts or discovers the local service                       | Official Claude Code is installed and authenticated by its user                                          |
+| Submit    | `POST /v1/chat/completions` with messages, `bridge/<profile>`, token, and optional idempotency key  | Validate authorization and message/schema contract; commit the job to SQLite            | Execution has not started                                                                                |
+| Execute   | Wait for a completion, or receive a background receipt                                              | Claim a fenced attempt; select inference or native-agent execution                      | Inference: produce structured output with native tools disabled. Agent: use profile tools and subagents. |
+| Return    | Consume OpenAI JSON/SSE; execute requested client functions locally                                 | Validate answer/function arguments; map observed usage and stable IDs into the response | Emit a structured final envelope, native session identity, usage, and limit events                       |
+| Observe   | Use the console or `/v1/bridge` state, control, workflow, and event routes                          | Persist observations and coordinate pause/resume, quota gates, and workflow checkpoints | Own native context, compaction, and session continuation                                                 |
+| Next turn | Inference: send full OpenAI history including function results. Native agent: send a job follow-up. | New inference turn becomes a new job; a native follow-up continues its existing job     | Resume the saved native session only for that job's recovery or native continuation                      |
 
 The plugin is the host integration and startup mechanism. The durable queue and HTTP listener run in a separate local service process. Automatic model work runs in an owned Claude Code process. These responsibilities stay separate even when everything runs on the same laptop.
 
 For optional channel jobs, the current Claude host conversation performs the work after claiming it through MCP. That path uses explicit progress/completion acknowledgments because the bridge cannot directly control a Desktop or Code conversation's process.
+
+## One API, explicit execution ownership
+
+The OpenAI-compatible surface is the common admission path. SDKs, the console, and MCP job tools submit through `/v1/chat/completions`; `bridge.execution` selects inference, native agent work, or host-owned channel work. Workflows create their sequential steps directly in the same queue. There is one authentication layer, scheduler, database, and set of controls.
+
+The `/v1/bridge` namespace supplies the operations OpenAI Chat Completions does not define: durable job state, pause/resume, workflows, templates, host leases, token administration, and replayable events. These extensions do not run a separate inference service.
+
+Inference disables native filesystem, Bash, MCP, and Agent tools. Claude returns requests for the application's declared functions; Pydantic AI or another client executes those functions and sends results on its next request. Native agent execution instead grants the profile's tools to an owned Claude process. This distinction prevents a client function name from becoming a local command.
+
+![Inference and native execution boundaries](../assets/diagrams/openai-compatible.svg)
+
+[PNG](../assets/diagrams/openai-compatible.png) · [SDK contract and examples](openai-compatible.md)
 
 ## One service owns mutable state
 
@@ -38,11 +51,13 @@ The service validates the saved instance ID and protocol version when reconnecti
 
 A resume uses the same Claude session. An explicit retry creates a new attempt and a new session while retaining the job's history. The job workspace remains available; retry is not a filesystem rollback.
 
-## Commands and events commit together
+## Requests, jobs, and events commit together
 
 SQLite uses WAL, foreign keys, full synchronous commits, prepared statements, and immediate transactions. Job transitions, idempotency records, and events are written together.
 
 An idempotency key is scoped to a principal and operation. The same request returns its existing resource; changing its body under the same key produces a conflict. A fence prevents a disconnected or superseded worker from finishing a newer attempt.
+
+OpenAI streaming sends keepalives while inference runs and releases only validated final chunks. Its response is not the orchestration event log. Synchronous disconnects and deadlines cancel the job when its last waiter leaves; background execution remains durable without a waiting socket. Quota/operator pauses retain admitted work and expose its job ID for recovery.
 
 The latest 10,000 event sequence IDs are retained. Clients reconnect with a cursor. An expired cursor is explicit and requires a state refresh, preventing silent gaps.
 

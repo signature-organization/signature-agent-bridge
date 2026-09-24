@@ -10,9 +10,9 @@
   <a href="LICENSE"><img alt="Apache 2.0 license" src="https://img.shields.io/badge/license-Apache_2.0-14756d"></a>
   <a href="https://github.com/signature-organization/signature-agent-bridge/releases/latest"><img alt="GitHub release" src="https://img.shields.io/github/v/release/signature-organization/signature-agent-bridge?color=14756d"></a>
 </p>
-<p align="center"><a href="#quickstart">Quickstart</a> · <a href="docs/architecture.md">Architecture</a> · <a href="docs/api.md">API & SSE</a> · <a href="docs/dashboard.md">Console tour</a> · <a href="docs/operations.md">Operations</a></p>
+<p align="center"><a href="#quickstart">Quickstart</a> · <a href="docs/architecture.md">Architecture</a> · <a href="docs/api.md">API & SDKs</a> · <a href="docs/dashboard.md">Console tour</a> · <a href="docs/operations.md">Operations</a></p>
 
-Signature Agent Bridge connects **Claude Desktop, Claude Code, and your applications** through a shared local job queue. Install the native integration, keep your own official Claude Code login, and manage work through conversation, an authenticated API, or a live web console.
+Signature Agent Bridge connects **Claude Desktop, Claude Code, and your applications** through one OpenAI-compatible API and a durable local queue. Install the native integration, keep your own official Claude Code login, and use the OpenAI SDK, Pydantic AI, conversation tools, or a live management console.
 
 ![The branded management console with a job queue, conversation, child tasks, and live events](assets/screenshots/dashboard-desktop.png)
 
@@ -33,7 +33,8 @@ The motivation is practical: use the tools and subscription you already work wit
 | Capability                  | Behavior                                                                                                        |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Native installation         | A GitHub marketplace plugin for Code; a self-contained `.mcpb` extension for Desktop                            |
-| Bidirectional communication | REST sends commands and follow-ups; SSE streams durable progress and results back                               |
+| OpenAI-compatible API       | Chat Completions, model discovery, client-side functions, structured output, and buffered SSE                   |
+| Bidirectional communication | One API admits work and controls execution; orchestration SSE delivers durable progress                         |
 | Durable jobs                | SQLite queue, scoped idempotency keys, fenced attempts, explicit cancellation and retries                       |
 | Session continuity          | Native session IDs survive compaction and support pause/resume                                                  |
 | Subscription limits         | Durable dispatch pause, provider reset timestamps, bounded automatic continuation, manual recovery when unknown |
@@ -113,7 +114,7 @@ Select **New job**, enter a task, and choose **Queue job**. Open its conversatio
 
 [Full installation guide](docs/installation.md) covers verification, updates, portable CLI usage, and troubleshooting.
 
-## Talk to the API
+## Connect an application
 
 Create a scoped application token under **Diagnostics → Client access**, then set it in your shell:
 
@@ -121,21 +122,29 @@ Create a scoped application token under **Diagnostics → Client access**, then 
 export BRIDGE_URL="http://127.0.0.1:8766"
 export BRIDGE_TOKEN="your-scoped-bridge-token"
 
-curl --fail-with-body "$BRIDGE_URL/v1/jobs" \
+curl --fail-with-body "$BRIDGE_URL/v1/chat/completions" \
   -H "Authorization: Bearer $BRIDGE_TOKEN" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: first-example-job" \
-  -d '{"prompt":"Write a concise project checklist","profile":"default","mode":"cli"}'
+  -d '{"model":"bridge/default","messages":[{"role":"user","content":"Write a concise project checklist"}]}'
 ```
 
-In another terminal, receive durable events:
+For the OpenAI SDK and Pydantic AI, use `base_url="$BRIDGE_URL/v1"`, `api_key=BRIDGE_TOKEN`, and model `bridge/default`. [Follow the complete SDK quickstart](docs/openai-compatible.md), including Python functions, typed output, streaming, and recovery.
+
+![SDKs, client functions, and native Claude execution](assets/diagrams/openai-compatible.svg)
+
+[PNG diagram](assets/diagrams/openai-compatible.png) · [Runnable Pydantic AI example](examples/pydantic_agent.py)
+
+Native agent work uses the same `/v1/chat/completions` endpoint with `bridge: {"execution":"agent","background":true}`. The console and MCP integration use this path too. Management, workflows, and notifications live under `/v1/bridge/*` and operate on the same queue.
+
+In another terminal, receive durable orchestration events:
 
 ```sh
-curl -N "$BRIDGE_URL/v1/events" \
+curl -N "$BRIDGE_URL/v1/bridge/events" \
   -H "Authorization: Bearer $BRIDGE_TOKEN"
 ```
 
-![REST commands and SSE event flow](assets/diagrams/communication.svg)
+![Unified API and event flow](assets/diagrams/communication.svg)
 
 SSE is one-way: the client sends messages and controls with HTTP requests; the server sends events back over the stream. Together they provide bidirectional application communication.
 
@@ -186,7 +195,9 @@ git clone https://github.com/signature-organization/signature-agent-bridge.git
 cd signature-agent-bridge
 npm ci
 npx playwright install chromium
-npm run check
+python3 -m venv .client-venv
+.client-venv/bin/pip install -r tests/clients/requirements.txt
+BRIDGE_PYTHON="$PWD/.client-venv/bin/python" npm run check
 ```
 
 [Contributing](CONTRIBUTING.md) explains architecture, meaningful tests, license headers, contributors, and release builds.

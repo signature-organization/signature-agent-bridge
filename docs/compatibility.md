@@ -7,10 +7,12 @@
 | Claude Desktop on macOS/Windows    | Native binary MCPB extension                     | Dedicated official Claude Code worker using the user's own subscription |
 | Claude Code on macOS/Linux/Windows | Native plugin marketplace, MCP server, and skill | Same local worker and queue                                             |
 | Code channel preview               | Explicitly enrolled stdio MCP channel            | Work claimed in the current host conversation                           |
-| Local applications                 | Authenticated HTTP REST and SSE                  | Profile-controlled queued work                                          |
+| Local applications                 | OpenAI Chat Completions + `/v1/bridge` controls  | Profile-controlled queued work                                          |
 | HTTPS tunnel callers               | Same API behind a configured tunnel              | Same local service and trust boundary                                   |
 
 Minimum supported Claude Code version: **2.1.260**. The worker preserves official login and uses native bypass. It does not support API-key mode or third-party provider billing.
+
+OpenAI Python SDK 3.19.2 and Pydantic AI 2.49.0 are tested against the [documented Chat Completions subset](openai-compatible.md). Configure Pydantic AI with `OpenAIChatModel`; Responses and multimodal APIs are outside the contract.
 
 Source runtime: Node.js 24+. Native release builder/runtime: official Node.js 26.3.0. Release artifacts target macOS arm64/x64, Linux arm64/x64, and Windows x64. Desktop bundles are produced only for macOS and Windows.
 

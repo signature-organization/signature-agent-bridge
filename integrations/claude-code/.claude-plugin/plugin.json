@@ -1,7 +1,7 @@
 {
   "name": "signature-agent-bridge",
   "version": "0.1.0",
-  "description": "Manage durable local jobs, resumable sessions, workflows, and REST/SSE communication through your Claude subscription.",
+  "description": "OpenAI-compatible local jobs, workflows, and a management console powered by your own Claude subscription.",
   "author": {
     "name": "@ancongui",
     "url": "https://github.com/ancongui"
@@ -9,5 +9,13 @@
   "homepage": "https://github.com/signature-organization/signature-agent-bridge",
   "repository": "https://github.com/signature-organization/signature-agent-bridge",
   "license": "Apache-2.0",
-  "keywords": ["mcp", "workflows", "sse", "queue", "dashboard"]
+  "keywords": [
+    "mcp",
+    "workflows",
+    "sse",
+    "queue",
+    "dashboard",
+    "openai-compatible",
+    "pydantic-ai"
+  ]
 }

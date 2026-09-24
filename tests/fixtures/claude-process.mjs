@@ -34,7 +34,26 @@ if (process.argv.includes("status")) {
 }
 let prompt = "";
 for await (const part of process.stdin) prompt += part;
-if (prompt === "fixture:events") {
+if (process.argv.includes("--json-schema")) {
+  console.log(
+    JSON.stringify({
+      type: "result",
+      subtype: "success",
+      is_error: false,
+      result: "",
+      structured_output: {
+        content: JSON.stringify({ args: process.argv.slice(2) }),
+        tool_calls: [],
+      },
+      usage: {
+        input_tokens: 5,
+        cache_read_input_tokens: 2,
+        cache_creation_input_tokens: 3,
+        output_tokens: 7,
+      },
+    }),
+  );
+} else if (prompt === "fixture:events") {
   for (const message of [
     {
       type: "system",

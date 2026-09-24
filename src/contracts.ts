@@ -17,6 +17,12 @@
  */
 
 import { z } from "zod";
+import type { ChatRequest } from "./completion-protocol.js";
+export type TokenUsage = {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+};
 export const jobInputSchema = z.strictObject({
   prompt: z.string().trim().min(1).max(100_000),
   profile: z
@@ -50,6 +56,8 @@ export type Message = {
   createdAt: string;
 };
 export type Job = JobInput & {
+  completion?: ChatRequest;
+  usage?: TokenUsage;
   pendingMessages?: Message[];
   resumePending?: boolean;
   resumedTurns?: number;
@@ -80,6 +88,7 @@ export type Attempt = {
   updatedAt: string;
 };
 export type Outcome = {
+  usage?: TokenUsage;
   status:
     | "succeeded"
     | "failed"

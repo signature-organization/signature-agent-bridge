@@ -43,19 +43,25 @@ it("shares a locked service, authenticates host leases, and releases ownership o
       authorization: "Bearer " + service.ownerToken,
       "content-type": "application/json",
     };
-    const response = await fetch(service.address + "/v1/status", { headers });
+    const response = await fetch(service.address + "/v1/bridge/status", {
+      headers,
+    });
     expect(response.status).toBe(200);
     await expect(startService(config)).rejects.toThrow(/lock/i);
-    const lease = await fetch(service.address + "/v1/hosts/heartbeat", {
+    const lease = await fetch(service.address + "/v1/bridge/hosts/heartbeat", {
       method: "POST",
       headers,
       body: JSON.stringify({ id: "host-one" }),
     });
     expect(lease.status).toBe(200);
-    const submit = await fetch(service.address + "/v1/jobs", {
+    const submit = await fetch(service.address + "/v1/chat/completions", {
       method: "POST",
       headers,
-      body: JSON.stringify({ prompt: "smoke" }),
+      body: JSON.stringify({
+        model: "bridge/default",
+        messages: [{ role: "user", content: "smoke" }],
+        bridge: { execution: "agent", background: true },
+      }),
     });
     const job = (await submit.json()) as { id: string };
     await expect
@@ -63,7 +69,9 @@ it("shares a locked service, authenticates host leases, and releases ownership o
         async () =>
           (
             (await (
-              await fetch(service.address + "/v1/jobs/" + job.id, { headers })
+              await fetch(service.address + "/v1/bridge/jobs/" + job.id, {
+                headers,
+              })
             ).json()) as { status: string }
           ).status,
       )

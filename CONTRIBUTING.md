@@ -9,7 +9,9 @@ Use an official Node.js 26.3.0 distribution for the native packaging checks. Run
 ```sh
 npm ci
 npx playwright install chromium
-npm run check
+python3 -m venv .client-venv
+.client-venv/bin/pip install -r tests/clients/requirements.txt
+BRIDGE_PYTHON="$PWD/.client-venv/bin/python" npm run check
 ```
 
 On Linux CI, use `npx playwright install --with-deps chromium`. Homebrew's Node executable may lack the SEA fuse; set `BRIDGE_SEA_NODE` to an official Node 26.3.0 binary if needed.
@@ -20,9 +22,12 @@ The normal suite uses deterministic subprocess and HTTP fixtures and does not co
 
 ```sh
 BRIDGE_LIVE_TEST=1 npm run test:live
+BRIDGE_LIVE_TEST=1 BRIDGE_PYTHON="$PWD/.client-venv/bin/python" npm run test:clients
 ```
 
-That check creates temporary files using your official Claude Code login, resumes the same native session, and verifies a native subagent. It consumes your plan allowance. Native Claude session history remains in Claude's own storage.
+The client check runs the actual OpenAI SDK and Pydantic AI against official Claude, including Python function execution, structured output, and SSE. Without `BRIDGE_LIVE_TEST=1`, `test:clients` uses a deterministic bridge worker. Python 3.10+ is required only for SDK compatibility tests and examples.
+
+The native check creates temporary files using your official Claude Code login, resumes the same native session, and verifies a native subagent. It consumes your plan allowance. Native Claude session history remains in Claude's own storage.
 
 ## Change standards
 

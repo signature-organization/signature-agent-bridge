@@ -27,10 +27,14 @@ const headers = {
 const prompt =
   process.argv.slice(2).join(" ") ||
   "Explain the purpose of this local bridge in one paragraph.";
-const response = await fetch(base + "/v1/jobs", {
+const response = await fetch(base + "/v1/chat/completions", {
   method: "POST",
   headers: { ...headers, "Idempotency-Key": randomUUID() },
-  body: JSON.stringify({ prompt }),
+  body: JSON.stringify({
+    model: "bridge/default",
+    messages: [{ role: "user", content: prompt }],
+    bridge: { execution: "agent", background: true },
+  }),
 });
 if (!response.ok) throw new Error(await response.text());
 const job = await response.json();
@@ -42,17 +46,17 @@ let cursor = 0,
   delay = 1000;
 while (!finished && !controller.signal.aborted) {
   try {
-    const stream = await fetch(base + "/v1/events", {
+    const stream = await fetch(base + "/v1/bridge/events", {
       headers: { ...headers, "Last-Event-ID": String(cursor) },
       signal: controller.signal,
     });
     if (stream.status === 409) {
       const status = await (
-        await fetch(base + "/v1/status", { headers })
+        await fetch(base + "/v1/bridge/status", { headers })
       ).json();
       cursor = status.eventCursorFloor;
       const current = await (
-        await fetch(base + "/v1/jobs/" + job.id, { headers })
+        await fetch(base + "/v1/bridge/jobs/" + job.id, { headers })
       ).json();
       console.log("Refreshed state:", current.status);
       if (
@@ -98,7 +102,7 @@ while (!finished && !controller.signal.aborted) {
           ].includes(event.type)
         ) {
           const current = await (
-            await fetch(base + "/v1/jobs/" + job.id, { headers })
+            await fetch(base + "/v1/bridge/jobs/" + job.id, { headers })
           ).json();
           console.log(current.result ?? current.error ?? current.status);
           finished = true;

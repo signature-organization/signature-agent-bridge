@@ -69,7 +69,7 @@ assert(
 assert(read("src/cli.ts").includes('console.log("' + version + '")'));
 for (const file of files) {
   if (file.startsWith("vendor-licenses/")) continue;
-  if (/\.(ts|js|mjs|css|svg|html|sh|yml)$/.test(file)) {
+  if (/\.(ts|js|mjs|css|svg|html|sh|yml|py)$/.test(file)) {
     const start = read(file).slice(0, 1800);
     for (const notice of [
       "Signature Management Consultants SLU",
@@ -100,7 +100,7 @@ for (const file of files) {
   }
 }
 const api = JSON.parse(read("docs/openapi.json"));
-for (const match of read("src/http.ts").matchAll(
+for (const match of (read("src/http.ts") + read("src/openai.ts")).matchAll(
   /app\.(get|post|put|delete)\(\s*["'](\/v1\/[^"']+)["']/g,
 )) {
   const path = match[2]!.replace(/:([A-Za-z]+)/g, "{$1}");

@@ -166,7 +166,7 @@ export async function startService(
         JSON.stringify({
           address,
           instanceId,
-          protocolVersion: 1,
+          protocolVersion: 2,
           pid: process.pid,
         }),
       );

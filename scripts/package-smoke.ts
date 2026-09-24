@@ -70,24 +70,38 @@ try {
     daemonPid = current.pid;
     token = readFileSync(join(directory, "owner.token"), "utf8").trim();
   }
-  const status = await fetch(address + "/v1/status", {
+  const status = await fetch(address + "/v1/bridge/status", {
     headers: { Authorization: "Bearer " + token },
   });
-  if (!status.ok) throw new Error("Packaged API failed");
+  if (
+    !status.ok ||
+    ((await status.json()) as { protocolVersion: number }).protocolVersion !== 2
+  )
+    throw new Error("Packaged API failed");
+  const models = await fetch(address + "/v1/models", {
+    headers: { Authorization: "Bearer " + token },
+  });
+  if (
+    !models.ok ||
+    !((await models.json()) as { data: { id: string }[] }).data.some(
+      (m) => m.id === "bridge/default",
+    )
+  )
+    throw new Error("Packaged model discovery failed");
   const page = await (await fetch(address)).text();
   if (
     !page.includes("Signature Agent Bridge") ||
     !page.includes("template-dialog")
   )
     throw new Error("Embedded console is missing");
-  if ((await fetch(address + "/v1/jobs")).status !== 401)
+  if ((await fetch(address + "/v1/bridge/jobs")).status !== 401)
     throw new Error("Packaged API lost authentication");
   console.log(
     "Native package: two stdio hosts share one authenticated service; embedded console and template tools passed.",
   );
 } finally {
   if (address && token)
-    await fetch(address + "/v1/admin/stop", {
+    await fetch(address + "/v1/bridge/admin/stop", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token,
@@ -113,7 +127,9 @@ try {
   // The shutdown endpoint replies before it closes SQLite and releases its lock.
   for (let i = 0; i < 50; i++) {
     try {
-      await fetch(address + "/v1/status", { signal: AbortSignal.timeout(200) });
+      await fetch(address + "/v1/bridge/status", {
+        signal: AbortSignal.timeout(200),
+      });
       await new Promise((r) => setTimeout(r, 100));
     } catch {
       break;

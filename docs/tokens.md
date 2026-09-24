@@ -71,12 +71,14 @@ The examples below assume your process already has `BRIDGE_TOKEN` from its priva
 
 ```sh
 export BRIDGE_URL=http://127.0.0.1:8766
-curl --fail-with-body "$BRIDGE_URL/v1/status" \
+curl --fail-with-body "$BRIDGE_URL/v1/bridge/status" \
   -H "Authorization: Bearer $BRIDGE_TOKEN"
 node examples/client.mjs "Summarize the purpose of the bridge"
 ```
 
-Send the same header on REST and SSE requests. Never add `?token=...` to a URL. Owner-only operations require the owner token; normal applications should use their scoped client token.
+For the OpenAI SDK and Pydantic AI, pass this same token as `api_key`, use `base_url=BRIDGE_URL + "/v1"`, and select `bridge/default`. Chat Completions needs both `read` and `submit`. The [SDK guide](openai-compatible.md) includes complete examples.
+
+Send the same header on HTTP and SSE requests. Never add `?token=...` to a URL. Owner-only operations require the owner token; normal applications should use their scoped client token.
 
 To create a read-only client through the API, first load `BRIDGE_OWNER_TOKEN` from the owner file without printing it. On macOS:
 
@@ -90,7 +92,7 @@ Use the corresponding path in the table for Linux. In PowerShell: `$env:BRIDGE_O
 Then submit:
 
 ```sh
-curl --fail-with-body "$BRIDGE_URL/v1/admin/tokens" \
+curl --fail-with-body "$BRIDGE_URL/v1/bridge/admin/tokens" \
   -H "Authorization: Bearer $BRIDGE_OWNER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"id":"status-viewer","profiles":["default"],"scopes":["read"]}'
@@ -104,7 +106,7 @@ Click **Revoke** next to the client in Diagnostics, or run:
 ./signature-agent-bridge revoke --id build-helper
 ```
 
-Revocation invalidates all tokens for that client name and disconnects its SSE streams. Create a replacement token and update the application's private configuration. Revocation does not cancel jobs already admitted; cancel those explicitly if needed.
+Revocation invalidates all tokens for that client name and disconnects its SSE streams. Create a replacement token and update the application's private configuration. Revocation ends active synchronous completion waiters and cancels their work when no waiter remains. Background jobs remain admitted; cancel those explicitly if needed.
 
 ## Troubleshooting
 

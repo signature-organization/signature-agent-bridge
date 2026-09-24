@@ -1,7 +1,7 @@
 {
   "name": "@signature-organization/agent-bridge",
   "version": "0.1.0",
-  "description": "Durable local job bridge for Claude Desktop and Claude Code",
+  "description": "OpenAI-compatible local orchestration for Claude Desktop and Claude Code",
   "type": "module",
   "license": "Apache-2.0",
   "author": "@ancongui",
@@ -32,15 +32,17 @@
     "format": "prettier --write .",
     "verify": "tsx scripts/verify.ts",
     "package": "tsx scripts/package.ts",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run test:browser && npm run build && npm run verify && npm run package && npm run test:package",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test && npm run test:clients && npm run test:browser && npm run build && npm run verify && npm run package && npm run test:package",
     "test:browser": "playwright test",
     "test:live": "tsx scripts/live-smoke.ts",
     "test:package": "tsx scripts/package-smoke.ts",
     "render:diagrams": "tsx scripts/render-diagrams.ts",
-    "generate:api": "tsx scripts/openapi.ts"
+    "generate:api": "tsx scripts/openapi.ts",
+    "test:clients": "tsx scripts/clients-smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.1",
+    "ajv": "8.20.0",
     "fastify": "5.12.5",
     "proper-lockfile": "4.1.2",
     "zod": "4.6.5"

@@ -17,6 +17,7 @@
 #
 set -euo pipefail
 version="0.1.0"
+build="api-1"
 repository="signature-organization/signature-agent-bridge"
 case "$(uname -s)" in
   Darwin) platform="darwin"; cache="${HOME}/Library/Caches/SignatureAgentBridge" ;;
@@ -33,7 +34,7 @@ if [ "$platform" = "win32" ] && [ "$architecture" != "x64" ]; then
   echo "Use an x64 Git Bash environment on Windows." >&2; exit 1
 fi
 asset="signature-agent-bridge-$version-$platform-$architecture"
-target="$cache/$version-$platform-$architecture"
+target="$cache/$version-$build-$platform-$architecture"
 executable="signature-agent-bridge"
 [ "$platform" != "win32" ] || executable="$executable.exe"
 mkdir -p "$cache"

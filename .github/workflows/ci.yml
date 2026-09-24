@@ -40,6 +40,11 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm test
+      - name: Verify Python SDK clients
+        run: |
+          python3 -m venv .client-venv
+          .client-venv/bin/pip install -r tests/clients/requirements.txt
+          BRIDGE_PYTHON="$PWD/.client-venv/bin/python" npm run test:clients
       - run: npm run test:browser
       - run: npm run build
       - run: npm run verify
@@ -100,4 +105,9 @@ jobs:
         run: |
           cd release-assets
           sha256sum *.tar.gz *.mcpb > SHA256SUMS
-          gh release create "$RELEASE_TAG" ./*.tar.gz ./*.mcpb SHA256SUMS --verify-tag --title "Signature Agent Bridge $RELEASE_TAG" --notes-file ../CHANGELOG.md
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" ./*.tar.gz ./*.mcpb SHA256SUMS --clobber
+            gh release edit "$RELEASE_TAG" --title "Signature Agent Bridge $RELEASE_TAG" --notes-file ../CHANGELOG.md --draft=false --latest
+          else
+            gh release create "$RELEASE_TAG" ./*.tar.gz ./*.mcpb SHA256SUMS --verify-tag --title "Signature Agent Bridge $RELEASE_TAG" --notes-file ../CHANGELOG.md
+          fi

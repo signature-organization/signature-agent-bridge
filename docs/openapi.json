@@ -3,7 +3,7 @@
   "info": {
     "title": "Signature Agent Bridge API",
     "version": "0.1.0",
-    "description": "Authenticated local orchestration with REST commands and durable SSE notifications. Copyright 2026 Signature Management Consultants SLU. Author @ancongui.",
+    "description": "OpenAI-compatible Chat Completions and unified /v1/bridge orchestration extensions. Copyright 2026 Signature Management Consultants SLU. Author @ancongui.",
     "license": {
       "name": "Apache-2.0",
       "identifier": "Apache-2.0"
@@ -20,10 +20,10 @@
     }
   ],
   "paths": {
-    "/v1/status": {
+    "/v1/bridge/status": {
       "get": {
-        "operationId": "get_v1_status",
-        "summary": "GET /v1/status",
+        "operationId": "get_v1_bridge_status",
+        "summary": "GET /v1/bridge/status",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -52,59 +52,10 @@
         }
       }
     },
-    "/v1/jobs": {
-      "post": {
-        "operationId": "post_v1_jobs",
-        "summary": "POST /v1/jobs",
-        "description": "Requires submit authorization. See api.md for lifecycle semantics, errors, and response fields.",
-        "tags": ["Jobs"],
-        "x-required-scope": "submit",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "schema": {
-              "type": "string",
-              "maxLength": 128
-            }
-          }
-        ],
-        "responses": {
-          "202": {
-            "description": "Accepted for asynchronous execution",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Job"
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Rejected request; error.code identifies the reason.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/JobInput"
-              }
-            }
-          }
-        }
-      },
+    "/v1/bridge/jobs": {
       "get": {
-        "operationId": "get_v1_jobs",
-        "summary": "GET /v1/jobs",
+        "operationId": "get_v1_bridge_jobs",
+        "summary": "GET /v1/bridge/jobs",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -160,10 +111,10 @@
         }
       }
     },
-    "/v1/jobs/{id}": {
+    "/v1/bridge/jobs/{id}": {
       "get": {
-        "operationId": "get_v1_jobs_id",
-        "summary": "GET /v1/jobs/{id}",
+        "operationId": "get_v1_bridge_jobs_id",
+        "summary": "GET /v1/bridge/jobs/{id}",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -202,10 +153,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/attempts": {
+    "/v1/bridge/jobs/{id}/attempts": {
       "get": {
-        "operationId": "get_v1_jobs_id_attempts",
-        "summary": "GET /v1/jobs/{id}/attempts",
+        "operationId": "get_v1_bridge_jobs_id_attempts",
+        "summary": "GET /v1/bridge/jobs/{id}/attempts",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -244,10 +195,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/pause": {
+    "/v1/bridge/jobs/{id}/pause": {
       "post": {
-        "operationId": "post_v1_jobs_id_pause",
-        "summary": "POST /v1/jobs/{id}/pause",
+        "operationId": "post_v1_bridge_jobs_id_pause",
+        "summary": "POST /v1/bridge/jobs/{id}/pause",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "control",
@@ -297,10 +248,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/resume": {
+    "/v1/bridge/jobs/{id}/resume": {
       "post": {
-        "operationId": "post_v1_jobs_id_resume",
-        "summary": "POST /v1/jobs/{id}/resume",
+        "operationId": "post_v1_bridge_jobs_id_resume",
+        "summary": "POST /v1/bridge/jobs/{id}/resume",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "control",
@@ -350,10 +301,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/result": {
+    "/v1/bridge/jobs/{id}/result": {
       "get": {
-        "operationId": "get_v1_jobs_id_result",
-        "summary": "GET /v1/jobs/{id}/result",
+        "operationId": "get_v1_bridge_jobs_id_result",
+        "summary": "GET /v1/bridge/jobs/{id}/result",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -402,10 +353,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/messages": {
+    "/v1/bridge/jobs/{id}/messages": {
       "get": {
-        "operationId": "get_v1_jobs_id_messages",
-        "summary": "GET /v1/jobs/{id}/messages",
+        "operationId": "get_v1_bridge_jobs_id_messages",
+        "summary": "GET /v1/bridge/jobs/{id}/messages",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "read",
@@ -444,8 +395,8 @@
         }
       },
       "post": {
-        "operationId": "post_v1_jobs_id_messages",
-        "summary": "POST /v1/jobs/{id}/messages",
+        "operationId": "post_v1_bridge_jobs_id_messages",
+        "summary": "POST /v1/bridge/jobs/{id}/messages",
         "description": "Requires submit authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "submit",
@@ -511,10 +462,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/cancel": {
+    "/v1/bridge/jobs/{id}/cancel": {
       "post": {
-        "operationId": "post_v1_jobs_id_cancel",
-        "summary": "POST /v1/jobs/{id}/cancel",
+        "operationId": "post_v1_bridge_jobs_id_cancel",
+        "summary": "POST /v1/bridge/jobs/{id}/cancel",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "control",
@@ -564,10 +515,10 @@
         }
       }
     },
-    "/v1/jobs/{id}/retry": {
+    "/v1/bridge/jobs/{id}/retry": {
       "post": {
-        "operationId": "post_v1_jobs_id_retry",
-        "summary": "POST /v1/jobs/{id}/retry",
+        "operationId": "post_v1_bridge_jobs_id_retry",
+        "summary": "POST /v1/bridge/jobs/{id}/retry",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Jobs"],
         "x-required-scope": "control",
@@ -617,10 +568,10 @@
         }
       }
     },
-    "/v1/events": {
+    "/v1/bridge/events": {
       "get": {
-        "operationId": "get_v1_events",
-        "summary": "GET /v1/events",
+        "operationId": "get_v1_bridge_events",
+        "summary": "GET /v1/bridge/events",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Events"],
         "x-required-scope": "read",
@@ -659,10 +610,10 @@
         }
       }
     },
-    "/v1/workflow-runs": {
+    "/v1/bridge/workflow-runs": {
       "post": {
-        "operationId": "post_v1_workflow-runs",
-        "summary": "POST /v1/workflow-runs",
+        "operationId": "post_v1_bridge_workflow-runs",
+        "summary": "POST /v1/bridge/workflow-runs",
         "description": "Requires workflows authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "workflows",
@@ -723,8 +674,8 @@
         }
       },
       "get": {
-        "operationId": "get_v1_workflow-runs",
-        "summary": "GET /v1/workflow-runs",
+        "operationId": "get_v1_bridge_workflow-runs",
+        "summary": "GET /v1/bridge/workflow-runs",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "read",
@@ -753,10 +704,10 @@
         }
       }
     },
-    "/v1/workflow-runs/{id}": {
+    "/v1/bridge/workflow-runs/{id}": {
       "get": {
-        "operationId": "get_v1_workflow-runs_id",
-        "summary": "GET /v1/workflow-runs/{id}",
+        "operationId": "get_v1_bridge_workflow-runs_id",
+        "summary": "GET /v1/bridge/workflow-runs/{id}",
         "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "read",
@@ -795,10 +746,10 @@
         }
       }
     },
-    "/v1/workflow-runs/{id}/cancel": {
+    "/v1/bridge/workflow-runs/{id}/cancel": {
       "post": {
-        "operationId": "post_v1_workflow-runs_id_cancel",
-        "summary": "POST /v1/workflow-runs/{id}/cancel",
+        "operationId": "post_v1_bridge_workflow-runs_id_cancel",
+        "summary": "POST /v1/bridge/workflow-runs/{id}/cancel",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "control",
@@ -848,10 +799,10 @@
         }
       }
     },
-    "/v1/workflow-runs/{id}/pause": {
+    "/v1/bridge/workflow-runs/{id}/pause": {
       "post": {
-        "operationId": "post_v1_workflow-runs_id_pause",
-        "summary": "POST /v1/workflow-runs/{id}/pause",
+        "operationId": "post_v1_bridge_workflow-runs_id_pause",
+        "summary": "POST /v1/bridge/workflow-runs/{id}/pause",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "control",
@@ -901,10 +852,10 @@
         }
       }
     },
-    "/v1/workflow-runs/{id}/resume": {
+    "/v1/bridge/workflow-runs/{id}/resume": {
       "post": {
-        "operationId": "post_v1_workflow-runs_id_resume",
-        "summary": "POST /v1/workflow-runs/{id}/resume",
+        "operationId": "post_v1_bridge_workflow-runs_id_resume",
+        "summary": "POST /v1/bridge/workflow-runs/{id}/resume",
         "description": "Requires control authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Workflows"],
         "x-required-scope": "control",
@@ -954,10 +905,10 @@
         }
       }
     },
-    "/v1/admin/pause": {
+    "/v1/bridge/admin/pause": {
       "post": {
-        "operationId": "post_v1_admin_pause",
-        "summary": "POST /v1/admin/pause",
+        "operationId": "post_v1_bridge_admin_pause",
+        "summary": "POST /v1/bridge/admin/pause",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -997,10 +948,10 @@
         }
       }
     },
-    "/v1/admin/resume": {
+    "/v1/bridge/admin/resume": {
       "post": {
-        "operationId": "post_v1_admin_resume",
-        "summary": "POST /v1/admin/resume",
+        "operationId": "post_v1_bridge_admin_resume",
+        "summary": "POST /v1/bridge/admin/resume",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1040,10 +991,10 @@
         }
       }
     },
-    "/v1/admin/stop": {
+    "/v1/bridge/admin/stop": {
       "post": {
-        "operationId": "post_v1_admin_stop",
-        "summary": "POST /v1/admin/stop",
+        "operationId": "post_v1_bridge_admin_stop",
+        "summary": "POST /v1/bridge/admin/stop",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1083,10 +1034,10 @@
         }
       }
     },
-    "/v1/admin/tokens": {
+    "/v1/bridge/admin/tokens": {
       "get": {
-        "operationId": "get_v1_admin_tokens",
-        "summary": "GET /v1/admin/tokens",
+        "operationId": "get_v1_bridge_admin_tokens",
+        "summary": "GET /v1/bridge/admin/tokens",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1115,8 +1066,8 @@
         }
       },
       "post": {
-        "operationId": "post_v1_admin_tokens",
-        "summary": "POST /v1/admin/tokens",
+        "operationId": "post_v1_bridge_admin_tokens",
+        "summary": "POST /v1/bridge/admin/tokens",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1177,10 +1128,10 @@
         }
       }
     },
-    "/v1/admin/tokens/revoke": {
+    "/v1/bridge/admin/tokens/revoke": {
       "post": {
-        "operationId": "post_v1_admin_tokens_revoke",
-        "summary": "POST /v1/admin/tokens/revoke",
+        "operationId": "post_v1_bridge_admin_tokens_revoke",
+        "summary": "POST /v1/bridge/admin/tokens/revoke",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1226,10 +1177,10 @@
         }
       }
     },
-    "/v1/hosts/heartbeat": {
+    "/v1/bridge/hosts/heartbeat": {
       "post": {
-        "operationId": "post_v1_hosts_heartbeat",
-        "summary": "POST /v1/hosts/heartbeat",
+        "operationId": "post_v1_bridge_hosts_heartbeat",
+        "summary": "POST /v1/bridge/hosts/heartbeat",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1275,10 +1226,10 @@
         }
       }
     },
-    "/v1/hosts/disconnect": {
+    "/v1/bridge/hosts/disconnect": {
       "post": {
-        "operationId": "post_v1_hosts_disconnect",
-        "summary": "POST /v1/hosts/disconnect",
+        "operationId": "post_v1_bridge_hosts_disconnect",
+        "summary": "POST /v1/bridge/hosts/disconnect",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1324,10 +1275,10 @@
         }
       }
     },
-    "/v1/channel/pending": {
+    "/v1/bridge/channel/pending": {
       "get": {
-        "operationId": "get_v1_channel_pending",
-        "summary": "GET /v1/channel/pending",
+        "operationId": "get_v1_bridge_channel_pending",
+        "summary": "GET /v1/bridge/channel/pending",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1356,10 +1307,10 @@
         }
       }
     },
-    "/v1/channel/claim": {
+    "/v1/bridge/channel/claim": {
       "post": {
-        "operationId": "post_v1_channel_claim",
-        "summary": "POST /v1/channel/claim",
+        "operationId": "post_v1_bridge_channel_claim",
+        "summary": "POST /v1/bridge/channel/claim",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1409,10 +1360,10 @@
         }
       }
     },
-    "/v1/admin/templates": {
+    "/v1/bridge/admin/templates": {
       "get": {
-        "operationId": "get_v1_admin_templates",
-        "summary": "GET /v1/admin/templates",
+        "operationId": "get_v1_bridge_admin_templates",
+        "summary": "GET /v1/bridge/admin/templates",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1441,10 +1392,10 @@
         }
       }
     },
-    "/v1/admin/templates/{templateId}": {
+    "/v1/bridge/admin/templates/{templateId}": {
       "put": {
-        "operationId": "put_v1_admin_templates_templateId",
-        "summary": "PUT /v1/admin/templates/{templateId}",
+        "operationId": "put_v1_bridge_admin_templates_templateId",
+        "summary": "PUT /v1/bridge/admin/templates/{templateId}",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1492,8 +1443,8 @@
         }
       },
       "delete": {
-        "operationId": "delete_v1_admin_templates_templateId",
-        "summary": "DELETE /v1/admin/templates/{templateId}",
+        "operationId": "delete_v1_bridge_admin_templates_templateId",
+        "summary": "DELETE /v1/bridge/admin/templates/{templateId}",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1531,10 +1482,10 @@
         }
       }
     },
-    "/v1/channel/progress": {
+    "/v1/bridge/channel/progress": {
       "post": {
-        "operationId": "post_v1_channel_progress",
-        "summary": "POST /v1/channel/progress",
+        "operationId": "post_v1_bridge_channel_progress",
+        "summary": "POST /v1/bridge/channel/progress",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1592,10 +1543,10 @@
         }
       }
     },
-    "/v1/channel/complete": {
+    "/v1/bridge/channel/complete": {
       "post": {
-        "operationId": "post_v1_channel_complete",
-        "summary": "POST /v1/channel/complete",
+        "operationId": "post_v1_bridge_channel_complete",
+        "summary": "POST /v1/bridge/channel/complete",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1653,10 +1604,10 @@
         }
       }
     },
-    "/v1/channel/stopped": {
+    "/v1/bridge/channel/stopped": {
       "post": {
-        "operationId": "post_v1_channel_stopped",
-        "summary": "POST /v1/channel/stopped",
+        "operationId": "post_v1_bridge_channel_stopped",
+        "summary": "POST /v1/bridge/channel/stopped",
         "description": "Requires owner authorization. See api.md for lifecycle semantics, errors, and response fields.",
         "tags": ["Administration"],
         "x-required-scope": "owner",
@@ -1709,6 +1660,140 @@
           }
         }
       }
+    },
+    "/v1/models": {
+      "get": {
+        "operationId": "get_v1_models",
+        "summary": "GET /v1/models",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["OpenAI compatibility"],
+        "x-required-scope": "read",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Models"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chat/completions": {
+      "post": {
+        "operationId": "post_v1_chat_completions",
+        "summary": "POST /v1/chat/completions",
+        "description": "Requires read + submit authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["OpenAI compatibility"],
+        "x-required-scope": "read + submit",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Validated completion JSON or buffered OpenAI SSE. Keepalive comments precede the final chunks; data: [DONE] ends the stream.",
+            "headers": {
+              "X-Bridge-Job-Id": {
+                "description": "Durable job ID for console and recovery",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatCompletion"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "bridge.background=true: durable job receipt",
+            "headers": {
+              "X-Bridge-Job-Id": {
+                "description": "Durable job ID for console and recovery",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Admission bound or subscription limit. A paused admitted job is retained.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Seconds until a known provider reset"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1720,27 +1805,395 @@
       }
     },
     "schemas": {
-      "JobInput": {
+      "ChatRequest": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "type": "object",
         "properties": {
-          "prompt": {
+          "model": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 100000
+            "pattern": "^bridge\\/[a-zA-Z0-9_-]{1,64}$"
           },
-          "profile": {
-            "default": "default",
-            "type": "string",
-            "pattern": "^[\\w-]{1,64}$"
+          "messages": {
+            "minItems": 1,
+            "maxItems": 128,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["system", "developer", "user", "assistant", "tool"]
+                },
+                "content": {
+                  "anyOf": [
+                    {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "minItems": 1,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "type": {
+                                "type": "string",
+                                "const": "text"
+                              },
+                              "text": {
+                                "type": "string"
+                              }
+                            },
+                            "required": ["type", "text"],
+                            "additionalProperties": false
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "name": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                },
+                "tool_calls": {
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "type": {
+                        "type": "string",
+                        "const": "function"
+                      },
+                      "function": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                          },
+                          "arguments": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["name", "arguments"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": ["id", "type", "function"],
+                    "additionalProperties": false
+                  }
+                },
+                "tool_call_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                }
+              },
+              "required": ["role"],
+              "additionalProperties": false
+            }
           },
-          "mode": {
-            "default": "cli",
-            "type": "string",
-            "enum": ["cli", "channel"]
+          "tools": {
+            "default": [],
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "function"
+                },
+                "function": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                    },
+                    "description": {
+                      "type": "string",
+                      "maxLength": 10000
+                    },
+                    "parameters": {
+                      "default": {
+                        "type": "object",
+                        "properties": {}
+                      },
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "strict": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": ["name"],
+                  "additionalProperties": false
+                }
+              },
+              "required": ["type", "function"],
+              "additionalProperties": false
+            }
+          },
+          "tool_choice": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": ["none", "auto", "required"]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "function"
+                  },
+                  "function": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                      }
+                    },
+                    "required": ["name"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "function"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "parallel_tool_calls": {
+            "default": true,
+            "type": "boolean"
+          },
+          "response_format": {
+            "default": {
+              "type": "text"
+            },
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "text"
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "json_object"
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "const": "json_schema"
+                  },
+                  "json_schema": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "schema": {
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {}
+                      },
+                      "strict": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["name", "schema"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "json_schema"],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "stream": {
+            "default": false,
+            "type": "boolean"
+          },
+          "stream_options": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "include_usage": {
+                    "type": "boolean"
+                  }
+                },
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "n": {
+            "default": 1,
+            "type": "number",
+            "const": 1
+          },
+          "bridge": {
+            "default": {},
+            "type": "object",
+            "properties": {
+              "execution": {
+                "default": "inference",
+                "type": "string",
+                "enum": ["inference", "agent", "channel"]
+              },
+              "background": {
+                "default": false,
+                "type": "boolean"
+              }
+            },
+            "additionalProperties": false
           }
         },
-        "required": ["prompt", "profile", "mode"],
+        "required": ["model", "messages"],
+        "additionalProperties": false
+      },
+      "ChatCompletion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "object": {
+            "const": "chat.completion"
+          },
+          "created": {
+            "type": "integer"
+          },
+          "model": {
+            "type": "string"
+          },
+          "choices": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": {
+                  "type": "integer"
+                },
+                "message": {
+                  "type": "object",
+                  "properties": {
+                    "role": {
+                      "const": "assistant"
+                    },
+                    "content": {
+                      "type": ["string", "null"]
+                    },
+                    "tool_calls": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                },
+                "finish_reason": {
+                  "enum": ["stop", "tool_calls"]
+                }
+              },
+              "required": ["index", "message", "finish_reason"],
+              "additionalProperties": false
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          }
+        },
+        "required": ["id", "object", "created", "model", "choices"],
+        "additionalProperties": false
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "prompt_tokens": {
+            "type": "integer"
+          },
+          "completion_tokens": {
+            "type": "integer"
+          },
+          "total_tokens": {
+            "type": "integer"
+          }
+        },
+        "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+        "additionalProperties": false
+      },
+      "Models": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "const": "list"
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "object": {
+                  "const": "model"
+                },
+                "created": {
+                  "type": "integer"
+                },
+                "owned_by": {
+                  "type": "string"
+                }
+              },
+              "required": ["id", "object", "created", "owned_by"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["object", "data"],
         "additionalProperties": false
       },
       "Template": {
@@ -1833,6 +2286,12 @@
           "result": {
             "type": "string"
           },
+          "completion": {
+            "$ref": "#/components/schemas/ChatRequest"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/Usage"
+          },
           "error": {
             "type": "string"
           },
@@ -1872,11 +2331,21 @@
               "message": {
                 "type": "string"
               },
+              "type": {
+                "type": "string"
+              },
+              "param": {
+                "type": "null"
+              },
               "requestId": {
                 "type": "string"
+              },
+              "job_id": {
+                "type": "string",
+                "format": "uuid"
               }
             },
-            "required": ["code", "message", "requestId"],
+            "required": ["code", "message", "type", "param"],
             "additionalProperties": false
           }
         },

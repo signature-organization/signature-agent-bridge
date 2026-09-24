@@ -3,10 +3,10 @@
   "name": "signature-agent-bridge",
   "display_name": "Signature Agent Bridge",
   "version": "0.1.0",
-  "description": "Local job orchestration, workflows, and a diagnostic dashboard powered by your Claude Code subscription.",
-  "long_description": "The extension starts a shared local listener with durable jobs, authenticated REST/SSE, workflows, and native bypass execution through your own installed Claude Code login. Claude Code 2.1.260 or later and a subscription login are required. No API key is collected. Data stays in your operating system's user data directory.",
+  "description": "OpenAI-compatible local jobs, workflows, and a management console powered by your own Claude subscription.",
+  "long_description": "The extension starts one local OpenAI-compatible API with durable jobs, workflow templates, buffered completion SSE, and replayable orchestration events. Connect the OpenAI SDK or Pydantic AI, or run native agent work with profile-controlled tools and bypass permissions. Official Claude Code 2.1.260 or later and your own subscription login are required. No provider API key is collected. Data stays in your operating system user data directory.",
   "author": {
-    "name": "Signature Management Consultants SLU · @ancongui",
+    "name": "Signature Management Consultants SLU \u00b7 @ancongui",
     "url": "https://github.com/ancongui"
   },
   "repository": {
@@ -27,7 +27,15 @@
     }
   },
   "tools_generated": true,
-  "keywords": ["orchestration", "workflows", "local", "queue", "sse"],
+  "keywords": [
+    "orchestration",
+    "workflows",
+    "local",
+    "queue",
+    "sse",
+    "openai-compatible",
+    "pydantic-ai"
+  ],
   "license": "Apache-2.0",
   "compatibility": {
     "platforms": ["darwin", "win32"]

@@ -14,6 +14,8 @@ npm run check
 
 On Linux CI, use `npx playwright install --with-deps chromium`. Homebrew's Node executable may lack the SEA fuse; set `BRIDGE_SEA_NODE` to an official Node 26.3.0 binary if needed.
 
+The Intel Mac package ships a launcher, the official runtime, and the bundled application because the pinned Intel single-executable output crashes at startup. The other platforms use SEA. Both layouts run the same clean-directory MCP package smoke test.
+
 The normal suite uses deterministic subprocess and HTTP fixtures and does not consume a Claude subscription. A separate, explicit live check is available:
 
 ```sh

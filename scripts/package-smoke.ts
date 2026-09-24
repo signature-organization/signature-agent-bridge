@@ -40,6 +40,7 @@ writeFileSync(join(directory, "config.json"), JSON.stringify(config), {
 const clients: Client[] = [];
 let address = "",
   token = "";
+let daemonPid: number | undefined;
 try {
   for (let i = 0; i < 2; i++) {
     const client = new Client({ name: "package-smoke-" + i, version: "1" });
@@ -66,6 +67,7 @@ try {
     if (address && current.address !== address)
       throw new Error("Adapters started duplicate services");
     address = current.address;
+    daemonPid = current.pid;
     token = readFileSync(join(directory, "owner.token"), "utf8").trim();
   }
   const status = await fetch(address + "/v1/status", {
@@ -94,6 +96,20 @@ try {
       body: "{}",
     }).catch(() => {});
   await Promise.allSettled(clients.map((c) => c.close()));
+  // Windows retains a process's current directory until the daemon actually exits.
+  // An HTTP listener disappearing alone does not mean its process has finished.
+  if (daemonPid)
+    for (let i = 0; i < 100; i++) {
+      try {
+        process.kill(daemonPid, 0);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ESRCH") break;
+        throw error;
+      }
+      if (i === 99)
+        throw new Error("Native daemon did not exit after shutdown");
+      await new Promise((r) => setTimeout(r, 100));
+    }
   // The shutdown endpoint replies before it closes SQLite and releases its lock.
   for (let i = 0; i < 50; i++) {
     try {

@@ -124,16 +124,14 @@ it("closes the listener when renewable ownership is compromised", async () => {
   spy.mockRestore();
   try {
     expect(() => compromise!(new Error("Ownership lost"))).not.toThrow();
+    // Observe completed cleanup before probing HTTP; a request racing socket shutdown
+    // can itself stall on a reused connection and hide the actual lifecycle result.
     await expect
-      .poll(async () => {
-        try {
-          await fetch(service.address);
-          return false;
-        } catch {
-          return true;
-        }
-      })
-      .toBe(true);
+      .poll(() => service.store.db.isOpen, { timeout: 5000 })
+      .toBe(false);
+    await expect(
+      fetch(service.address, { signal: AbortSignal.timeout(1000) }),
+    ).rejects.toThrow();
   } finally {
     await service.close();
     rmSync(dir, { recursive: true, force: true });

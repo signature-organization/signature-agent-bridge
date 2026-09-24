@@ -24,6 +24,7 @@ import {
   copyFileSync,
   chmodSync,
   readdirSync,
+  cpSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { createHash } from "node:crypto";
@@ -32,13 +33,24 @@ const version = JSON.parse(readFileSync("package.json", "utf8"))
 const binaryName =
   "signature-agent-bridge" + (process.platform === "win32" ? ".exe" : "");
 const builder = process.env.BRIDGE_SEA_NODE ?? process.execPath;
-execFileSync(builder, ["--build-sea", "dist/sea-config.json"], {
-  stdio: "inherit",
-});
-if (process.platform === "darwin")
-  execFileSync("codesign", ["--force", "--sign", "-", "dist/" + binaryName], {
+const bundledRuntime = process.platform === "darwin" && process.arch === "x64";
+// The pinned Node release's Intel Mach-O SEA crashes even with a minimal script.
+// Preserve its official runtime binary and ship a launcher on this platform instead.
+if (bundledRuntime) {
+  mkdirSync("dist/runtime", { recursive: true });
+  copyFileSync(builder, "dist/runtime/node");
+  chmodSync("dist/runtime/node", 0o755);
+  copyFileSync("dist/cli.cjs", "dist/runtime/cli.cjs");
+  copyFileSync("integrations/launcher.sh", "dist/" + binaryName);
+} else {
+  execFileSync(builder, ["--build-sea", "dist/sea-config.json"], {
     stdio: "inherit",
   });
+  if (process.platform === "darwin")
+    execFileSync("codesign", ["--force", "--sign", "-", "dist/" + binaryName], {
+      stdio: "inherit",
+    });
+}
 chmodSync("dist/" + binaryName, 0o755);
 if (
   execFileSync(resolve("dist", binaryName), ["--version"], {
@@ -61,6 +73,12 @@ mkdirSync(join(desktop, "assets"), { recursive: true });
 mkdirSync(portable, { recursive: true });
 copyFileSync("dist/" + binaryName, join(desktop, "server", binaryName));
 copyFileSync("dist/" + binaryName, join(portable, binaryName));
+if (bundledRuntime) {
+  cpSync("dist/runtime", join(desktop, "server", "runtime"), {
+    recursive: true,
+  });
+  cpSync("dist/runtime", join(portable, "runtime"), { recursive: true });
+}
 for (const file of ["LICENSE", "NOTICE"]) {
   copyFileSync(file, join(desktop, file));
   copyFileSync(file, join(portable, file));

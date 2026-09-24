@@ -14,6 +14,8 @@ Minimum supported Claude Code version: **2.1.260**. The worker preserves officia
 
 Source runtime: Node.js 24+. Native release builder/runtime: official Node.js 26.3.0. Release artifacts target macOS arm64/x64, Linux arm64/x64, and Windows x64. Desktop bundles are produced only for macOS and Windows.
 
+Intel Mac packages contain an executable launcher beside the unmodified official runtime and bundled application. This avoids a reproduced startup crash in the pinned runtime's Intel single-executable output. Other platforms use single-executable builds. All release packages are self-contained; keep portable folders intact.
+
 Claude Desktop installation consent, managed extension allowlists, Code workspace/plugin consent, and channel preview enrollment remain host-controlled.
 
 The project does not expose a headless API for the Desktop chat UI. Desktop is a native startup/management surface; automatic jobs run through the locally installed official Claude Code executable. For conversation-owned channel work, Desktop can inspect and claim jobs with tools, but automatic Code-channel notifications are not a Desktop MCP feature.

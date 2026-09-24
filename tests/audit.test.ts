@@ -304,3 +304,51 @@ it("paginates complete payloads by byte budget without dropping records or trunc
   expect(count).toBe(3);
   expect(calls).toBe(3);
 });
+
+it("retains grouped message results without multiplying storage or attributing them to individual tools", () => {
+  const job = store.submit({ prompt: "test" }, alice),
+    attempt = store.claim("worker", "cli")!;
+  const raw = {
+    type: "user",
+    message: {
+      content: Array.from({ length: 100 }, (_, n) => ({
+        type: "tool_result",
+        tool_use_id: "group-" + n,
+        content: "ok",
+      })),
+    },
+    tool_use_result: { stdout: "x".repeat(100_000) },
+  };
+  for (const tool of nativeToolObservations(raw))
+    store.observe(attempt, { kind: "tool", text: "tool", tool });
+  const size = store.db
+    .prepare(
+      `SELECT
+    (SELECT sum(length(data)) FROM audit_tools) +
+    (SELECT sum(length(data)) FROM audit_entries) AS bytes`,
+    )
+    .get() as { bytes: number };
+  expect(size.bytes).toBeLessThan(Buffer.byteLength(JSON.stringify(raw)) * 4);
+  const tools = store.tools(job.id, alice, { limit: 200 }).tools;
+  const first = store.tool(job.id, tools[0]!.id, alice),
+    last = store.tool(job.id, tools.at(-1)!.id, alice);
+  for (const tool of [first, last]) {
+    expect(tool.output).not.toHaveProperty("result");
+    expect(tool.output).toMatchObject({
+      sharedMessageResult: {
+        toolIds: raw.message.content.map((b) => b.tool_use_id),
+        result: raw.tool_use_result,
+      },
+    });
+  }
+  const entries = store.audit(job.id, alice, {
+    limit: 200,
+    includePayloads: "true",
+  }).entries;
+  expect(
+    JSON.stringify(entries).split(raw.tool_use_result.stdout),
+  ).toHaveLength(2);
+  expect(entries.at(-1)!.data.output).toMatchObject({
+    sharedMessageResultToolId: "group-0",
+  });
+});

@@ -87,6 +87,10 @@ export function nativeToolObservations(raw: unknown): ToolObservation[] {
     !["assistant", "user"].includes(String(message.type))
   )
     return [];
+  const resultIds = content
+    .filter((item) => object(item).type === "tool_result")
+    .map((item) => identifier(object(item).tool_use_id))
+    .filter((id): id is string => id !== undefined);
   const observations: ToolObservation[] = [];
   for (const item of content) {
     const block = object(item),
@@ -134,7 +138,16 @@ export function nativeToolObservations(raw: unknown): ToolObservation[] {
             isError: block.is_error === true,
             ...(message.tool_use_result === undefined
               ? {}
-              : { result: message.tool_use_result }),
+              : resultIds.length <= 1
+                ? { result: message.tool_use_result }
+                : toolId === resultIds[0]
+                  ? {
+                      sharedMessageResult: {
+                        toolIds: resultIds,
+                        result: message.tool_use_result,
+                      },
+                    }
+                  : { sharedMessageResultToolId: resultIds[0] }),
           },
           toolId,
           phase: block.is_error === true ? "failed" : "succeeded",
@@ -392,7 +405,25 @@ export class AuditLog {
       .get(job.id, id) as { id: number; data: string } | undefined;
     if (!row)
       throw new BridgeError("not_found", "Tool observation not found", 404);
-    return { ...(JSON.parse(row.data) as ToolRecord), id: row.id };
+    const tool = { ...(JSON.parse(row.data) as ToolRecord), id: row.id };
+    const reference = object(tool.output).sharedMessageResultToolId;
+    if (typeof reference === "string") {
+      // A grouped message has no per-tool attribution for its outer result.
+      // Store it on one observation and expand the reference only for a single
+      // authenticated inspector; exports retain the original references.
+      const shared = this.db
+        .prepare(
+          "SELECT json_extract(data,'$.output.sharedMessageResult') AS payload FROM audit_tools WHERE job_id=? AND attempt_id=? AND tool_id=?",
+        )
+        .get(job.id, tool.attemptId, reference) as
+        { payload: string | null } | undefined;
+      if (shared?.payload)
+        tool.output = {
+          ...object(tool.output),
+          sharedMessageResult: JSON.parse(shared.payload),
+        };
+    }
+    return tool;
   }
   tools(job: Job, raw: ToolsQuery) {
     const query = toolsQuery.parse(raw);

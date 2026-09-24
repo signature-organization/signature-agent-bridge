@@ -12,6 +12,8 @@ Every native job can expose its tool calls, file targets, commands, and complete
 
 **Activity** lists native tools in observation order. Expand a card to read its command, output, supplied content, and result. Bash cards show the command and stdout/stderr when Claude supplies those fields. **Raw input, result, and correlation** exposes the complete captured payload, native tool ID, bridge attempt ID, session ID, parent tool ID, timestamps, and observed duration.
 
+If Claude groups several tool results in one message, the outer structured result is labeled **Shared message result**, not attributed to each tool. It is stored on the first result as `output.sharedMessageResult`, with the participating `toolIds`; the others use `output.sharedMessageResultToolId` to reference that tool within the same job and attempt. Inspectors resolve that reference on demand. Audit exports preserve the shared payload and references without multiplying storage for each result.
+
 ![Tool activity with a shell command and output](../assets/screenshots/activity-desktop.png)
 
 **Files** lists individual Read, Write, Edit, and NotebookEdit actions with a reported target. Read exposes returned content; Write exposes submitted content. Edit displays the exact before/after replacement fragments. Structured patches and an original file are also displayed when Claude emits them. A fragment comparison is labeled **Replacement diff**: it is not presented as a complete repository diff. The same path can appear several times as a job reads and edits it.

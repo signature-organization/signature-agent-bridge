@@ -106,6 +106,16 @@ function inspector(container, tool) {
   if (result.file?.content !== undefined)
     payload(container, "File content reported by Claude", result.file.content);
   payload(container, "Tool output", output.content);
+  if (output.sharedMessageResult) {
+    container.append(
+      node(
+        "p",
+        "Claude emitted this structured result for a message containing several tool results. It is not attributed to an individual tool.",
+        "hint",
+      ),
+    );
+    payload(container, "Shared message result", output.sharedMessageResult);
+  }
   if (!tool.completedAt)
     container.append(
       node(

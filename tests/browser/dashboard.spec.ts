@@ -652,3 +652,78 @@ test("audit pagination survives refresh and renders untrusted payloads as text",
   await expect(page.locator("#file-list .tool-card")).toHaveCount(27);
   await expect(page.locator("#file-list .tool-card[open]")).toHaveCount(1);
 });
+
+test("creating a job clears previous audit evidence before a failed attempts request", async ({
+  page,
+}) => {
+  const previous = service.store.submit(
+      { prompt: "Previous audit selection" },
+      owner,
+    ),
+    attempt = service.store.claim("fixture", "cli", previous.id)!;
+  service.store.observe(attempt, {
+    kind: "tool",
+    text: "tool",
+    tool: {
+      toolId: "previous-file",
+      name: "Write",
+      phase: "requested",
+      file: { path: "previous.txt", operation: "write" },
+      input: { content: "Previous evidence" },
+    },
+  });
+  service.store.finish(attempt, {
+    status: "succeeded",
+    result: "Fixture ready",
+  });
+  await login(page);
+  await page
+    .getByRole("button", {
+      name: "Previous audit selection",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("tab", { name: "Files", exact: false }).click();
+  await expect(page.locator("#file-list .tool-card").first()).toBeVisible();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/attempts", async (route) => {
+    await gate;
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { message: "Fixture attempts failure" } }),
+    });
+  });
+  await page.getByRole("button", { name: "New job", exact: false }).click();
+  await page
+    .getByLabel("What should Claude work on?")
+    .fill("New selection without stale evidence");
+  const attempts = page.waitForRequest((r) => r.url().endsWith("/attempts"));
+  await page.getByRole("button", { name: "Queue job", exact: true }).click();
+  const request = await attempts;
+  try {
+    await expect(page.locator("#messages")).toContainText(
+      "New selection without stale evidence",
+    );
+    await expect(page.locator("#file-list .tool-card")).toHaveCount(0);
+  } finally {
+    release();
+  }
+  await expect(page.locator("#notice")).toContainText(
+    "Fixture attempts failure",
+  );
+  await page.getByRole("tab", { name: "Files", exact: false }).click();
+  await expect(page.locator("#file-list")).toContainText(
+    "No file targets observed",
+  );
+  const exportRequest = page.waitForRequest((r) =>
+    r.url().includes("includePayloads=true"),
+  );
+  await page.getByRole("button", { name: "Export audit", exact: true }).click();
+  expect((await exportRequest).url()).toContain(
+    request.url().replace("/attempts", "/audit"),
+  );
+});

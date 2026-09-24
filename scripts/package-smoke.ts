@@ -91,9 +91,16 @@ try {
   const page = await (await fetch(address)).text();
   if (
     !page.includes("Signature Agent Bridge") ||
-    !page.includes("template-dialog")
+    !page.includes("template-dialog") ||
+    !page.includes("export-audit")
   )
     throw new Error("Embedded console is missing");
+  const auditModule = await fetch(address + "/audit.js");
+  if (
+    !auditModule.ok ||
+    !(await auditModule.text()).includes("Shared message result")
+  )
+    throw new Error("Embedded audit inspector is missing");
   if ((await fetch(address + "/v1/bridge/jobs")).status !== 401)
     throw new Error("Packaged API lost authentication");
   console.log(

@@ -144,8 +144,9 @@ function completionResult(raw) {
 }
 const auditPanel = createAuditPanel(api, notice);
 async function selectJob(id, loadedJob) {
+  // Creation preselects the new row; the audit panel owns a separate identity.
+  auditPanel.begin(id);
   if (selected !== id) {
-    auditPanel.begin(id);
     attemptsSnapshot = undefined;
     el("job-detail").hidden = true;
   }

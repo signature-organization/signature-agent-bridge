@@ -45,6 +45,16 @@ Use a unique `Idempotency-Key` for job creation, follow-ups, and workflow creati
 
 Inference histories belong to the calling SDK: submit full history as a new chat request for each turn. The follow-up endpoint is for native agent conversations. A message during execution or queued native continuation waits until that turn completes. Paused jobs must resume before accepting messages. Workflow-step prompts are fixed; start a separate job for follow-up discussion. Resume preserves an available native session; retry creates a new session and may repeat effects.
 
+## Execution audit and full tool payloads
+
+| Method and path                         | Purpose                                                                                        |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /v1/bridge/jobs/{id}/audit`        | Durable, paginated observations; optional `includePayloads=true` and fixed `through` snapshot. |
+| `GET /v1/bridge/jobs/{id}/tools`        | Current native tool metadata; `filesOnly=true` filters reported file targets.                  |
+| `GET /v1/bridge/jobs/{id}/tools/{tool}` | Full input/output, command/content, result, and correlation for one numeric tool record.       |
+
+All three require `read` and job ownership (or owner access). Lists accept numeric `after` and `limit` 1–200. Follow `nextCursor` until null; audit pages have a byte budget and may return fewer than the requested limit. See the [audit guide](audit.md) for complete fields, provenance, retention, and large JSON exports.
+
 ## Orchestration event stream
 
 ```sh
@@ -68,7 +78,7 @@ Save the last processed ID and reconnect with `Last-Event-ID`. Deduplicate by ID
 
 The service retains approximately the newest 10,000 events. HTTP 409 `event_cursor_expired` means refresh current resource state and restart from `eventCursorFloor` in status. SSE is a notification log, not an indefinitely retained audit archive.
 
-Typical events: `job.queued`, `job.running`, `job.session`, `job.progress`, `job.message`, `job.compaction`, `job.subagent`, `job.rate_limit`, `job.paused`, `job.resumed`, `job.succeeded`, `job.failed`, `job.interrupted`, and `workflow.failed`.
+Typical events: `job.queued`, `job.running`, `job.session`, `job.progress`, `job.tool`, `job.message`, `job.compaction`, `job.subagent`, `job.rate_limit`, `job.paused`, `job.resumed`, `job.succeeded`, `job.failed`, `job.interrupted`, and `workflow.failed`.
 
 Use `fetch` streaming in browsers to send a bearer header. Native `EventSource` does not expose arbitrary authorization headers. See [examples/client.mjs](../examples/client.mjs) for a complete command/event loop.
 

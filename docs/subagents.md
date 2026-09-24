@@ -55,3 +55,5 @@ The client token must include `read` and `submit` and allow `code-workflow`. Add
 Pause or cancel the **parent job** to stop its owned process tree. Children do not have separate bridge job IDs or individual pause endpoints. The child cap applies to reported tasks in one attempt, not to a persistent shared pool of agents. Profiles prevent Agent in the configured child's own tool list.
 
 If no child task appears, confirm the selected profile includes Agent and the named definition, inspect the job's error/result, and verify that Claude actually delegated. The bridge does not invent a completed child task merely because the prompt requested one.
+
+Open the parent job's **Activity** tab to inspect the Agent invocation and emitted child tool calls. Expand **Raw input, result, and correlation** to see the parent tool ID and session metadata. **Files** includes reported child file actions. See [execution audit](audit.md) for full payloads and coverage.

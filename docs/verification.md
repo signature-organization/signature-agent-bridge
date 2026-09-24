@@ -6,17 +6,17 @@
 
 `npm run check` runs strict TypeScript checking, ESLint, formatting, unit/integration tests, real Python SDK compatibility tests, browser interaction tests, bundled build, repository/contract checks, native packaging, and a clean-directory native MCP smoke test.
 
-Coverage includes transactional admission and idempotency, principal isolation and token revocation, SSE replay and expired cursors, process bounds and cancellation, durable quota gates, workflow checkpoints, template persistence, paused follow-up ordering, host claim fencing, and daemon discovery.
+Coverage includes transactional admission and idempotency, principal isolation and token revocation, SSE replay and expired cursors, process bounds and cancellation, durable quota gates, workflow checkpoints, template persistence, paused follow-up ordering, host claim fencing, and daemon discovery. Audit tests cover full payload retention, metadata-only lists, scoped detail reads, immutable export boundaries, large-payload pagination, stale-worker fencing, duplicate/out-of-order tool events, restart recovery, and external-function provenance.
 
-The Chromium suite exercises jobs, follow-ups, pause/resume, workflow steps, template validation and execution, token creation/revocation, navigation, dialogs, and layouts from 320 to 1440 pixels. Documentation screenshots use deterministic fixtures, not production customer data.
+The Chromium suite exercises jobs, follow-ups, pause/resume, workflow steps, template validation and execution, token creation/revocation, navigation, dialogs, full command/output inspection, replacement diffs, snapshot downloads, keyboard tabs, and layouts from 320 to 1440 pixels. Documentation screenshots use deterministic fixtures, not production customer data.
 
 ## Live Claude Code check
 
 On September 24, 2026, the explicit live smoke test passed on macOS arm64 using official Claude Code 2.1.260 with the user's own Claude.ai subscription login:
 
-- Native bypass executed Write and Read without worker approval prompts.
+- Native bypass executed Write, Read, Edit, and Bash without worker approval prompts; their complete emitted payloads reached the audit.
 - A follow-up continued the same native session and created a second file.
-- A configured native subagent ran and its task events reached the bridge.
+- A configured native subagent ran; its nested Read call retained parent-tool correlation in the audit.
 
 The test uses stdin for prompts. It does not extract credentials, alter the Claude client, or call a private provider endpoint.
 

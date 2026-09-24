@@ -16,10 +16,12 @@
  * limitations under the License.
  */
 
+import type { ToolObservation } from "./audit.js";
 import type { Attempt, Job, Outcome } from "./contracts.js";
 export type Execution = { job: Job; attempt: Attempt; cwd: string };
 export type WorkerEvent = {
   kind:
+    | "tool"
     | "output"
     | "progress"
     | "session"
@@ -27,6 +29,7 @@ export type WorkerEvent = {
     | "activity"
     | "rate_limit"
     | "subagent";
+  tool?: ToolObservation;
   text: string;
   data?: Record<string, unknown>;
 };

@@ -41,6 +41,7 @@ The motivation is practical: use the tools and subscription you already work wit
 | Workflows                   | Validated sequential templates, immutable run snapshots, step outputs, pause/resume and cancellation            |
 | Native subagents            | Profile-defined agents, child-task observations and limits, parent-owned shutdown                               |
 | Management console          | Jobs, conversations, workflows, diagnostics, application tokens, and live activity                              |
+| Execution audit             | Full tool inputs/results, commands and output, file contents, replacement diffs, and durable JSON export        |
 | Native bypass               | Worker jobs, workflow steps, and retries use `--dangerously-skip-permissions`                                   |
 | Tunnel access               | Loopback listener with host/origin allowlists and scoped bearer authentication                                  |
 
@@ -175,6 +176,18 @@ Configure the included `code-workflow` profile, register the `advanced-developme
 | ![Workflow console](assets/screenshots/workflows-desktop.png) | ![Service health and client access](assets/screenshots/diagnostics-desktop.png) |
 
 The interface is tested at 320, 390, 768, 1024, and 1440 pixels. [See the complete console tour](docs/dashboard.md), including mobile views and the new-job dialog.
+
+## Inspect every observed action
+
+Open a job's **Activity** tab for tool calls, commands, stdout/stderr, and complete inputs/results. **Files** brings together reported targets, contents, and available edit diffs. The durable audit survives notification retention and can be exported as JSON.
+
+![Native tool execution and shell output](assets/screenshots/activity-desktop.png)
+
+![Reported file actions and replacement diff](assets/screenshots/files-desktop.png)
+
+![How execution observations become a durable audit](assets/diagrams/execution-audit.svg)
+
+[Audit guide and API](docs/audit.md) · [PNG diagram](assets/diagrams/execution-audit.png) · [Streaming export example](examples/export-audit.mjs) · [Mobile inspection](assets/screenshots/files-mobile.png)
 
 ## Boundaries that matter
 

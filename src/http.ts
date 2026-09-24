@@ -20,6 +20,7 @@ import Fastify, { type FastifyRequest } from "fastify";
 import { z } from "zod";
 import { BridgeError, terminal, type Principal } from "./contracts.js";
 import { parseConfig, templateSchema, type BridgeConfig } from "./config.js";
+import { auditQuery, toolsQuery } from "./audit.js";
 import { QueueStore } from "./store.js";
 import { Tokens } from "./auth.js";
 import { Scheduler } from "./scheduler.js";
@@ -255,6 +256,30 @@ export function createHttpService(d: HttpDependencies) {
   app.get("/v1/bridge/jobs/:id", async (req) =>
     d.store.get(id(req), requireScope(req, "read")),
   );
+  app.get("/v1/bridge/jobs/:id/audit", async (req) =>
+    d.store.audit(
+      id(req),
+      requireScope(req, "read"),
+      auditQuery.parse(req.query),
+    ),
+  );
+  app.get("/v1/bridge/jobs/:id/tools", async (req) =>
+    d.store.tools(
+      id(req),
+      requireScope(req, "read"),
+      toolsQuery.parse(req.query),
+    ),
+  );
+  app.get("/v1/bridge/jobs/:id/tools/:tool", async (req) => {
+    const p = requireScope(req, "read");
+    const params = z
+      .strictObject({
+        id: z.string().uuid(),
+        tool: z.coerce.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      })
+      .parse(req.params);
+    return d.store.tool(params.id, params.tool, p);
+  });
   app.get("/v1/bridge/jobs/:id/attempts", async (req) => ({
     attempts: d.store.attempts(id(req), requireScope(req, "read")).map((a) => ({
       id: a.id,
@@ -530,6 +555,9 @@ export function createHttpService(d: HttpDependencies) {
   );
   app.get("/app.css", async (_req, reply) =>
     reply.type("text/css; charset=utf-8").send(uiAssets.css),
+  );
+  app.get("/audit.js", async (_req, reply) =>
+    reply.type("text/javascript; charset=utf-8").send(uiAssets.auditJs),
   );
   app.get("/app.js", async (_req, reply) =>
     reply.type("text/javascript; charset=utf-8").send(uiAssets.js),

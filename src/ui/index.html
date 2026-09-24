@@ -22,7 +22,7 @@ limitations under the License.
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Signature Agent Bridge</title>
     <link rel="stylesheet" href="/app.css" />
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <aside class="rail">
@@ -199,37 +199,122 @@ limitations under the License.
                 <div class="section-heading">
                   <div>
                     <span class="section-caption">Job details</span>
-                    <h2>Conversation</h2>
+                    <h2>Execution details</h2>
                   </div>
                   <span id="detail-state" class="pill"></span>
                 </div>
                 <p id="job-meta" class="hint"></p>
                 <div id="job-actions" class="actions"></div>
                 <p id="job-error" class="error" hidden></p>
-                <div id="messages"></div>
-                <form id="message-form">
-                  <label for="followup">Continue this conversation</label
-                  ><textarea
-                    id="followup"
-                    rows="2"
-                    maxlength="100000"
-                    required
-                    placeholder="Add a follow-up or a new direction…"
-                  ></textarea>
-                  <div class="reply-footer">
-                    <span>Uses the same Claude session</span
-                    ><button class="primary">Send follow-up</button>
-                  </div>
-                </form>
-                <div class="child-heading">
-                  <h3>Child tasks</h3>
-                  <span class="section-caption">Native orchestration</span>
+                <div
+                  class="job-tabs"
+                  role="tablist"
+                  aria-label="Job detail views"
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-conversation"
+                    aria-controls="panel-conversation"
+                    aria-selected="true"
+                    data-job-tab="conversation"
+                  >
+                    Conversation
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-activity"
+                    aria-controls="panel-activity"
+                    aria-selected="false"
+                    tabindex="-1"
+                    data-job-tab="activity"
+                  >
+                    Activity <span id="activity-count">0</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    id="tab-files"
+                    aria-controls="panel-files"
+                    aria-selected="false"
+                    tabindex="-1"
+                    data-job-tab="files"
+                  >
+                    Files <span id="files-count">0</span>
+                  </button>
                 </div>
-                <ul id="subagents"></ul>
-                <details>
-                  <summary>Attempts and session</summary>
-                  <pre id="attempts"></pre>
-                </details>
+                <div
+                  id="panel-conversation"
+                  role="tabpanel"
+                  aria-labelledby="tab-conversation"
+                  data-job-panel="conversation"
+                >
+                  <div id="messages"></div>
+                  <form id="message-form">
+                    <label for="followup">Continue this conversation</label
+                    ><textarea
+                      id="followup"
+                      rows="2"
+                      maxlength="100000"
+                      required
+                      placeholder="Add a follow-up or a new direction…"
+                    ></textarea>
+                    <div class="reply-footer">
+                      <span>Uses the same Claude session</span
+                      ><button class="primary">Send follow-up</button>
+                    </div>
+                  </form>
+                  <div class="child-heading">
+                    <h3>Child tasks</h3>
+                    <span class="section-caption">Native orchestration</span>
+                  </div>
+                  <ul id="subagents"></ul>
+                  <details>
+                    <summary>Attempts and session</summary>
+                    <pre id="attempts"></pre>
+                  </details>
+                </div>
+                <div
+                  id="panel-activity"
+                  role="tabpanel"
+                  aria-labelledby="tab-activity"
+                  data-job-panel="activity"
+                  hidden
+                >
+                  <div id="audit-summary" class="audit-stats"></div>
+                  <p id="audit-coverage" class="hint"></p>
+                  <div id="tool-list" class="tool-list"></div>
+                  <button id="more-tools" class="quiet" hidden>
+                    Load more tools
+                  </button>
+                  <details id="audit-journal" class="audit-journal">
+                    <summary>Audit log <span id="audit-count">0</span></summary>
+                    <div id="audit-entries"></div>
+                    <button id="more-audit" class="quiet" hidden>
+                      Load more events
+                    </button>
+                  </details>
+                </div>
+                <div
+                  id="panel-files"
+                  role="tabpanel"
+                  aria-labelledby="tab-files"
+                  data-job-panel="files"
+                  hidden
+                >
+                  <p id="file-coverage" class="hint"></p>
+                  <div id="file-list" class="tool-list"></div>
+                  <button id="more-files" class="quiet" hidden>
+                    Load more file actions
+                  </button>
+                </div>
+                <div class="audit-footer">
+                  <span>Durable execution record</span
+                  ><button id="export-audit" type="button" class="quiet">
+                    Export audit
+                  </button>
+                </div>
               </div>
             </section>
           </div>

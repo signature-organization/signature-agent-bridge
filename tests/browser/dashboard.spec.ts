@@ -77,6 +77,66 @@ test.beforeAll(async () => {
     owner,
   );
   const attempt = service.store.claim("fixture", "cli", first.id)!;
+  for (const tool of [
+    {
+      toolId: "read-notes",
+      name: "Read",
+      phase: "requested" as const,
+      file: { path: "notes/operations.md", operation: "read" as const },
+      input: { file_path: "notes/operations.md" },
+    },
+    {
+      toolId: "read-notes",
+      phase: "succeeded" as const,
+      output: {
+        content:
+          "# Operations\nLaunch checklist: pending\nOwner: Platform team",
+      },
+    },
+    {
+      toolId: "edit-notes",
+      name: "Edit",
+      phase: "requested" as const,
+      file: { path: "notes/operations.md", operation: "edit" as const },
+      input: {
+        file_path: "notes/operations.md",
+        old_string: "Launch checklist: pending",
+        new_string: "Launch checklist: ready for review",
+      },
+    },
+    {
+      toolId: "edit-notes",
+      phase: "succeeded" as const,
+      output: { content: "The file has been updated successfully." },
+    },
+    {
+      toolId: "check-tests",
+      name: "Bash",
+      phase: "requested" as const,
+      input: {
+        command: "npm run test:integration",
+        description: "Check the integration suite",
+      },
+    },
+    {
+      toolId: "check-tests",
+      phase: "succeeded" as const,
+      output: {
+        content: "12 tests passed",
+        result: {
+          stdout:
+            "PASS tests/integration/bridge.test.ts\nTests: 12 passed, 12 total\nTime: 1.84 s",
+          stderr: "",
+          interrupted: false,
+        },
+      },
+    },
+  ])
+    service.store.observe(attempt, {
+      kind: "tool",
+      text: "Tool activity observed",
+      tool,
+    });
   service.store.observe(attempt, {
     kind: "compaction",
     text: "Conversation compacted",
@@ -192,6 +252,79 @@ test("desktop renders branded state, safely displays output, and supports bidire
   await expect(page.locator("#tokens")).toContainText("owner");
   await capture(page, "diagnostics-desktop");
   expect(errors).toEqual([]);
+});
+test("activity and files expose full tool payloads, diffs, audit export, and responsive keyboard tabs", async ({
+  page,
+}) => {
+  await login(page);
+  await page
+    .getByRole("button", {
+      name: "Prepare the weekly operations summary",
+      exact: true,
+    })
+    .click();
+  await page.getByRole("tab", { name: "Activity", exact: false }).click();
+  await expect(page.locator("#audit-summary")).toContainText("3 tool calls");
+  await page
+    .locator("#tool-list .tool-card")
+    .filter({ hasText: "Bash" })
+    .locator("summary")
+    .first()
+    .click();
+  await expect(page.locator("#tool-list")).toContainText(
+    "npm run test:integration",
+  );
+  await expect(page.locator("#tool-list")).toContainText("12 passed, 12 total");
+  await capture(page, "activity-desktop");
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(
+    page.getByRole("tab", { name: "Activity", exact: false }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("#tool-list details[open]")).toHaveCount(1);
+  await page.getByRole("tab", { name: "Activity", exact: false }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(
+    page.getByRole("tab", { name: "Files", exact: false }),
+  ).toHaveAttribute("aria-selected", "true");
+  await page
+    .locator("#file-list .tool-card")
+    .filter({ hasText: "Edit" })
+    .locator("summary")
+    .first()
+    .click();
+  await expect(page.locator("#file-list")).toContainText(
+    "Launch checklist: pending",
+  );
+  await expect(page.locator("#file-list")).toContainText(
+    "Launch checklist: ready for review",
+  );
+  await capture(page, "files-desktop");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export audit", exact: true }).click();
+  const saved = await download;
+  const data = JSON.parse(
+    await (
+      await import("node:fs/promises")
+    ).readFile((await saved.path())!, "utf8"),
+  );
+  expect(
+    data.entries.some(
+      (e: { data: { input?: { command?: string } } }) =>
+        e.data.input?.command === "npm run test:integration",
+    ),
+  ).toBe(true);
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (const tab of ["Activity", "Files"]) {
+      await page.getByRole("tab", { name: tab, exact: false }).click();
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+      if (width === 390) await capture(page, tab.toLowerCase() + "-mobile");
+    }
+  }
 });
 test("mobile has no horizontal overflow and exposes job and workflow controls", async ({
   page,
@@ -428,4 +561,94 @@ test("keeps recent jobs visible and preserves loaded history across refreshes", 
   await expect(
     page.getByRole("button", { name: "History entry 204", exact: true }),
   ).toBeAttached();
+});
+
+test("audit pagination survives refresh and renders untrusted payloads as text", async ({
+  page,
+}) => {
+  const job = service.store.submit(
+      { prompt: "Inspect tool payload safety" },
+      owner,
+    ),
+    attempt = service.store.claim("fixture", "cli", job.id)!;
+  for (let index = 0; index < 27; index++) {
+    const toolId = "safe-" + index;
+    service.store.observe(attempt, {
+      kind: "tool",
+      text: "tool",
+      tool: {
+        toolId,
+        name: "Write",
+        phase: "requested",
+        file: { path: `files/item-${index}.txt`, operation: "write" },
+        input: {
+          file_path: `files/item-${index}.txt`,
+          content: '<img src=x onerror="window.auditInjected=true">',
+        },
+      },
+    });
+    service.store.observe(attempt, {
+      kind: "tool",
+      text: "tool",
+      tool: { toolId, phase: "succeeded", output: { content: "Written" } },
+    });
+  }
+  service.store.finish(attempt, {
+    status: "succeeded",
+    result: "Fixture ready",
+  });
+  let releaseAttempts!: () => void;
+  const attemptsGate = new Promise<void>((resolve) => {
+    releaseAttempts = resolve;
+  });
+  await page.route(`**/jobs/${job.id}/attempts`, async (route) => {
+    await attemptsGate;
+    await route.continue();
+  });
+  await login(page);
+  await page
+    .getByRole("button", { name: "Inspect tool payload safety", exact: true })
+    .click();
+  await page.getByRole("tab", { name: "Files", exact: false }).click();
+  releaseAttempts();
+  await expect(
+    page.getByRole("tab", { name: "Files", exact: false }),
+  ).toHaveAttribute("aria-selected", "true");
+  await expect
+    .poll(async () => ({
+      count: await page.locator("#file-list .tool-card").count(),
+      notice: await page.locator("#notice").textContent(),
+      tab: await page.locator("#tab-files").getAttribute("aria-selected"),
+    }))
+    .toMatchObject({ count: 25 })
+    .catch(async (error) => {
+      throw new Error(
+        error.message +
+          "\nPanel state: " +
+          JSON.stringify({
+            notice: await page.locator("#notice").textContent(),
+            tab: await page.locator("#tab-files").getAttribute("aria-selected"),
+          }),
+      );
+    });
+  await page
+    .getByRole("button", { name: "Load more file actions", exact: true })
+    .click();
+  await expect(page.locator("#file-list .tool-card")).toHaveCount(27);
+  await page
+    .locator("#file-list .tool-card")
+    .last()
+    .locator("summary")
+    .first()
+    .click();
+  await expect(page.locator("#file-list")).toContainText(
+    "window.auditInjected=true",
+  );
+  expect(await page.locator("#file-list img").count()).toBe(0);
+  expect(
+    await page.evaluate(() => Object.hasOwn(window, "auditInjected")),
+  ).toBe(false);
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(page.locator("#file-list .tool-card")).toHaveCount(27);
+  await expect(page.locator("#file-list .tool-card[open]")).toHaveCount(1);
 });

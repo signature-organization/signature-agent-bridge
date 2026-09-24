@@ -111,6 +111,61 @@ const schemas: Record<string, unknown> = {
       subagents: { type: "object" },
     },
   },
+  ToolObservation: object(
+    {
+      id: { type: "integer" },
+      jobId: uuid,
+      attemptId: uuid,
+      toolId: str,
+      name: str,
+      sessionId: str,
+      parentToolUseId: str,
+      status: { enum: ["requested", "succeeded", "failed", "unknown"] },
+      requestedAt: str,
+      completedAt: str,
+      durationMs: { type: "number" },
+      file: object({
+        path: str,
+        operation: { enum: ["read", "write", "edit"] },
+      }),
+      input: {},
+      output: {},
+    },
+    ["id", "jobId", "attemptId", "toolId", "status"],
+  ),
+  AuditEntry: object(
+    {
+      id: { type: "integer" },
+      jobId: uuid,
+      attemptId: uuid,
+      sessionId: str,
+      type: str,
+      source: { enum: ["claude", "bridge", "client"] },
+      createdAt: str,
+      data: { type: "object", additionalProperties: true },
+    },
+    ["id", "jobId", "type", "source", "createdAt", "data"],
+  ),
+  AuditPage: object({
+    entries: { type: "array", items: ref("AuditEntry") },
+    through: { type: "integer" },
+    nextCursor: { type: ["integer", "null"] },
+    summary: object({
+      tools: { type: "integer" },
+      files: { type: "integer" },
+      changedFiles: { type: "integer" },
+      failedTools: { type: "integer" },
+      unknownTools: { type: "integer" },
+      events: { type: "integer" },
+      coverage: {
+        enum: ["native_tools", "client_functions", "host_lifecycle"],
+      },
+    }),
+  }),
+  ToolPage: object({
+    tools: { type: "array", items: ref("ToolObservation") },
+    nextCursor: { type: ["integer", "null"] },
+  }),
   Error: object({
     error: object(
       {
@@ -136,8 +191,50 @@ for (const match of (
     name: m[1],
     in: "path",
     required: true,
-    schema: m[1] === "id" ? uuid : str,
+    schema:
+      m[1] === "id"
+        ? uuid
+        : m[1] === "tool"
+          ? { type: "integer", minimum: 1 }
+          : str,
   }));
+  if (/\/jobs\/\{id\}\/(audit|tools)$/.test(path)) {
+    parameters.push(
+      {
+        name: "after",
+        in: "query",
+        schema: { type: "integer", minimum: 0, default: 0 },
+      },
+      {
+        name: "limit",
+        in: "query",
+        schema: { type: "integer", minimum: 1, maximum: 200, default: 100 },
+      },
+    );
+    if (path.endsWith("/audit"))
+      parameters.push(
+        {
+          name: "through",
+          in: "query",
+          schema: { type: "integer", minimum: 0 },
+          description:
+            "Fix this to the first page's through value for an immutable export.",
+        },
+        {
+          name: "includePayloads",
+          in: "query",
+          schema: { type: "string", enum: ["true", "false"], default: "false" },
+          description:
+            "Include complete tool inputs/results. Pages stop around 4 MB, always retaining at least one whole entry.",
+        },
+      );
+    else
+      parameters.push({
+        name: "filesOnly",
+        in: "query",
+        schema: { type: "string", enum: ["true", "false"], default: "false" },
+      });
+  }
   if (path === "/v1/bridge/jobs" && method === "get")
     parameters.push(
       {
@@ -233,15 +330,20 @@ for (const match of (
       "/v1/bridge/jobs/{id}/retry",
       "/v1/bridge/workflow-runs",
     ].includes(path);
-  const responseSchema =
-    path === "/v1/bridge/jobs/{id}" ||
-    /\/jobs\/\{id\}\/(pause|resume|cancel|retry)$/.test(path)
-      ? ref("Job")
-      : path === "/v1/models"
-        ? ref("Models")
-        : path === "/v1/chat/completions"
-          ? ref("ChatCompletion")
-          : { type: "object" };
+  const responseSchema = path.endsWith("/audit")
+    ? ref("AuditPage")
+    : path.endsWith("/tools")
+      ? ref("ToolPage")
+      : path.endsWith("/tools/{tool}")
+        ? ref("ToolObservation")
+        : path === "/v1/bridge/jobs/{id}" ||
+            /\/jobs\/\{id\}\/(pause|resume|cancel|retry)$/.test(path)
+          ? ref("Job")
+          : path === "/v1/models"
+            ? ref("Models")
+            : path === "/v1/chat/completions"
+              ? ref("ChatCompletion")
+              : { type: "object" };
   const operation: Record<string, unknown> = {
     operationId:
       method +

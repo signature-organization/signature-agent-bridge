@@ -65,6 +65,16 @@ The latest 10,000 event sequence IDs are retained. Clients reconnect with a curs
 
 [Download PNG](../assets/diagrams/communication.png)
 
+## Tool observations become a durable audit
+
+![Execution audit responsibilities](../assets/diagrams/execution-audit.svg)
+
+[PNG](../assets/diagrams/execution-audit.png) · [Payloads, provenance, and export](audit.md)
+
+Claude emits tool requests and results. The bridge correlates them by job, fenced attempt, and native tool ID; it retains reported parent/session IDs for subagents. Complete input/result payloads and immutable observation entries commit to SQLite before lightweight notifications reach clients. A separate tool projection supplies current outcomes and reported file targets.
+
+The console loads metadata first and full content only when an inspector opens. Export reads immutable entries through a fixed high-water mark. Notification pruning does not remove the audit. Unfinished tools become unknown when an attempt ends; a successful process exit cannot manufacture a missing tool result. Client-owned functions retain request/client-report provenance and are never classified as native filesystem actions.
+
 ## Claude owns its context
 
 The worker invokes the unmodified installed Claude Code executable. Prompts go over stdin, never through a shell. The worker enables native bypass and suppresses host customizations with safe mode while preserving the official subscription login.

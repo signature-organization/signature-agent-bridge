@@ -10,6 +10,7 @@ Initial public release.
 - Unified API with `/v1/bridge` orchestration extensions, durable SQLite jobs, and replayable execution events.
 - Native subscription execution, bypass permissions, bounded workers, session follow-ups, compaction and child-task events.
 - Persistent quota gates, explicit execution controls, fenced host-conversation claims, and sequential workflow templates.
+- Durable execution audit with full tool payloads, shell output, reported file contents, replacement diffs, subagent correlation, and snapshot JSON export.
 - Branded responsive management console with template editing, diagnostics, and scoped client tokens.
 - Installation guides, API reference, architecture diagrams, screenshots, and automated release checks.
 

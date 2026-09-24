@@ -14,6 +14,12 @@ The API binds to loopback. Every versioned endpoint requires a bridge bearer tok
 
 Client tokens are scoped by principal, operations, and configured profiles. The database stores their hashes. SSE streams are revalidated during delivery and closed after revocation. Tokens are never accepted through query strings.
 
+## Execution audit data
+
+The audit preserves complete emitted tool inputs and outputs, including file contents and shell commands. A command can print credentials or personal data; these remain in the protected local audit. Metadata lists and tool SSE notifications omit payloads, while authenticated detail and export endpoints require the job's `read` scope and ownership. The local owner can inspect every job.
+
+Exports and database backups require the same protection as source workspaces. No automatic redaction, encryption-at-rest, or tamper-proof ledger is claimed. The bridge does not read arbitrary files to fill gaps in tool observations.
+
 ## Claude authentication
 
 The bridge invokes the unmodified official executable under the current user's login. It does not extract, proxy, persist, or forward Claude OAuth credentials. API/provider environment overrides are rejected rather than silently changing billing.

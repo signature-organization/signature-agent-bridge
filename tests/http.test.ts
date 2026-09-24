@@ -17,9 +17,11 @@
  */
 
 import { beforeEach, afterEach, it, expect } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { QueueStore } from "../src/store.js";
 import { Workflows } from "../src/workflows.js";
 import { Scheduler } from "../src/scheduler.js";
@@ -335,4 +337,126 @@ it("keeps host leases and job controls available when polling is rate limited", 
     ).statusCode,
   ).toBe(200);
   expect(store.get(job.id).status).toBe("canceled");
+});
+
+it("authorizes tool payloads and audit pages by job ownership and read scope", async () => {
+  const job = store.submit(
+      { prompt: "test" },
+      { id: "alice", owner: false, profiles: ["default"] },
+    ),
+    a = store.claim("test", "cli")!;
+  store.observe(a, {
+    kind: "tool",
+    text: "tool",
+    tool: {
+      toolId: "one",
+      name: "Bash",
+      phase: "requested",
+      input: { command: "printf hello" },
+    },
+  });
+  const listing = await app.inject({
+    method: "GET",
+    url: `/v1/bridge/jobs/${job.id}/tools`,
+    headers: headers(),
+  });
+  expect(listing.statusCode).toBe(200);
+  expect(listing.body).not.toContain("printf hello");
+  const toolId = listing.json().tools[0].id;
+  for (const suffix of ["audit?includePayloads=true", `tools/${toolId}`]) {
+    const url = `/v1/bridge/jobs/${job.id}/${suffix}`;
+    expect(
+      (await app.inject({ method: "GET", url, headers: headers() })).body,
+    ).toContain("printf hello");
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url,
+          headers: { authorization: "Bearer " + other },
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect((await app.inject({ method: "GET", url })).statusCode).toBe(401);
+    const submitOnly = auth.create({
+      id: "alice",
+      owner: false,
+      profiles: ["default"],
+      scopes: ["submit"],
+    }).token;
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url,
+          headers: { authorization: "Bearer " + submitOnly },
+        })
+      ).statusCode,
+    ).toBe(403);
+  }
+  for (const query of [
+    "limit=201",
+    "after=-1",
+    "through=1.5",
+    "includePayloads=yes",
+  ])
+    expect(
+      (
+        await app.inject({
+          method: "GET",
+          url: `/v1/bridge/jobs/${job.id}/audit?${query}`,
+          headers: headers(),
+        })
+      ).statusCode,
+    ).toBe(400);
+});
+
+it("streams a complete audit export through the public API without overwriting an existing file", async () => {
+  const job = store.submit(
+      { prompt: "export" },
+      { id: "alice", owner: false, profiles: ["default"] },
+    ),
+    a = store.claim("test", "cli")!;
+  for (let n = 0; n < 3; n++)
+    store.observe(a, {
+      kind: "tool",
+      text: "tool",
+      tool: {
+        toolId: "export-" + n,
+        name: "Write",
+        phase: "requested",
+        input: { content: "x".repeat(2_100_000) },
+      },
+    });
+  const address = await app.listen({ host: "127.0.0.1", port: 0 }),
+    destination = join(dir, "audit-export.json");
+  const execute = promisify(execFile),
+    options = {
+      env: {
+        ...process.env,
+        BRIDGE_URL: address,
+        BRIDGE_TOKEN: token,
+        JOB_ID: job.id,
+      },
+      timeout: 15000,
+    };
+  await execute(
+    process.execPath,
+    [resolve("examples/export-audit.mjs"), destination],
+    options,
+  );
+  const raw = readFileSync(destination, "utf8"),
+    data = JSON.parse(raw);
+  expect(
+    data.entries.filter((e: { type: string }) => e.type === "tool.requested"),
+  ).toHaveLength(3);
+  expect(data.entries.at(-1).id).toBe(data.through);
+  await expect(
+    execute(
+      process.execPath,
+      [resolve("examples/export-audit.mjs"), destination],
+      options,
+    ),
+  ).rejects.toThrow(/EEXIST/);
+  expect(readFileSync(destination, "utf8")).toBe(raw);
 });

@@ -153,6 +153,207 @@
         }
       }
     },
+    "/v1/bridge/jobs/{id}/audit": {
+      "get": {
+        "operationId": "get_v1_bridge_jobs_id_audit",
+        "summary": "GET /v1/bridge/jobs/{id}/audit",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          },
+          {
+            "name": "through",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "description": "Fix this to the first page's through value for an immutable export."
+          },
+          {
+            "name": "includePayloads",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "default": "false"
+            },
+            "description": "Include complete tool inputs/results. Pages stop around 4 MB, always retaining at least one whole entry."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bridge/jobs/{id}/tools": {
+      "get": {
+        "operationId": "get_v1_bridge_jobs_id_tools",
+        "summary": "GET /v1/bridge/jobs/{id}/tools",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          },
+          {
+            "name": "filesOnly",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["true", "false"],
+              "default": "false"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/bridge/jobs/{id}/tools/{tool}": {
+      "get": {
+        "operationId": "get_v1_bridge_jobs_id_tools_tool",
+        "summary": "GET /v1/bridge/jobs/{id}/tools/{tool}",
+        "description": "Requires read authorization. See api.md for lifecycle semantics, errors, and response fields.",
+        "tags": ["Jobs"],
+        "x-required-scope": "read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "tool",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolObservation"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Rejected request; error.code identifies the reason.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/bridge/jobs/{id}/attempts": {
       "get": {
         "operationId": "get_v1_bridge_jobs_id_attempts",
@@ -2318,6 +2519,168 @@
             "type": "object"
           }
         }
+      },
+      "ToolObservation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "toolId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "parentToolUseId": {
+            "type": "string"
+          },
+          "status": {
+            "enum": ["requested", "succeeded", "failed", "unknown"]
+          },
+          "requestedAt": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "number"
+          },
+          "file": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "operation": {
+                "enum": ["read", "write", "edit"]
+              }
+            },
+            "required": ["path", "operation"],
+            "additionalProperties": false
+          },
+          "input": {},
+          "output": {}
+        },
+        "required": ["id", "jobId", "attemptId", "toolId", "status"],
+        "additionalProperties": false
+      },
+      "AuditEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "jobId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sessionId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "source": {
+            "enum": ["claude", "bridge", "client"]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": ["id", "jobId", "type", "source", "createdAt", "data"],
+        "additionalProperties": false
+      },
+      "AuditPage": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEntry"
+            }
+          },
+          "through": {
+            "type": "integer"
+          },
+          "nextCursor": {
+            "type": ["integer", "null"]
+          },
+          "summary": {
+            "type": "object",
+            "properties": {
+              "tools": {
+                "type": "integer"
+              },
+              "files": {
+                "type": "integer"
+              },
+              "changedFiles": {
+                "type": "integer"
+              },
+              "failedTools": {
+                "type": "integer"
+              },
+              "unknownTools": {
+                "type": "integer"
+              },
+              "events": {
+                "type": "integer"
+              },
+              "coverage": {
+                "enum": ["native_tools", "client_functions", "host_lifecycle"]
+              }
+            },
+            "required": [
+              "tools",
+              "files",
+              "changedFiles",
+              "failedTools",
+              "unknownTools",
+              "events",
+              "coverage"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": ["entries", "through", "nextCursor", "summary"],
+        "additionalProperties": false
+      },
+      "ToolPage": {
+        "type": "object",
+        "properties": {
+          "tools": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ToolObservation"
+            }
+          },
+          "nextCursor": {
+            "type": ["integer", "null"]
+          }
+        },
+        "required": ["tools", "nextCursor"],
+        "additionalProperties": false
       },
       "Error": {
         "type": "object",

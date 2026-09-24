@@ -45,9 +45,10 @@ const service = await startService(
         tools: ["Read", "Write", "Agent"],
         agents: {
           checker: {
-            description: "Return the requested number without tools.",
-            prompt: "Return only the requested number.",
-            tools: [],
+            description: "Read the requested file and return its number.",
+            prompt:
+              "Use Read to read the requested file. Return only its number.",
+            tools: ["Read"],
           },
         },
         maxSubagents: 2,
@@ -98,7 +99,7 @@ const submit = (body: { prompt: string; profile?: string; mode?: string }) =>
 try {
   const job = await submit({
     prompt:
-      "Use Write to create bridge-smoke.txt containing exactly BRIDGE_OK. Read it with Read. Reply exactly BRIDGE_OK.",
+      "Use Write to create bridge-smoke.txt containing exactly BRIDGE_START. Read it with Read, then use Edit to replace BRIDGE_START with BRIDGE_OK. Use Bash to run printf AUDIT_SHELL_OK. Reply exactly BRIDGE_OK.",
     mode: "cli",
   });
   const first = await finish(job.id);
@@ -110,7 +111,7 @@ try {
   )
     throw new Error("Expected real file was not created");
   await call("/v1/bridge/jobs/" + job.id + "/messages", {
-    text: "Continue this same session: read bridge-smoke.txt, then write resumed.txt containing exactly RESUMED_OK. Reply exactly RESUMED_OK.",
+    text: "Continue this same session: use Read to read bridge-smoke.txt, then use Write to create resumed.txt containing exactly RESUMED_OK. Reply exactly RESUMED_OK.",
   });
   const resumed = await finish(job.id);
   if (first.sessionId !== resumed.sessionId)
@@ -124,13 +125,71 @@ try {
     throw new Error("Continuation did not create the expected file");
   const child = await submit({
     prompt:
-      "Use Agent to ask the checker subagent to return the number 7. Then use Write to save child-smoke.txt containing exactly 7. Reply exactly CHILD_OK.",
+      "Use Write to create delegation-input.txt containing exactly 7. Use Agent to ask the checker subagent to read delegation-input.txt with Read and return the number. Then use Write to save child-smoke.txt containing exactly 7. Reply exactly CHILD_OK.",
     profile: "delegation",
   });
   const delegated = await finish(child.id);
   if (!Object.keys(delegated.subagents ?? {}).length)
     throw new Error("Claude did not report a native child task");
+  const owner = { id: "owner", owner: true, profiles: [] };
+  const observations = service.store
+    .tools(job.id, owner, {})
+    .tools.map((t) => service.store.tool(job.id, t.id, owner));
+  for (const name of ["Write", "Read", "Edit", "Bash"])
+    if (!observations.some((t) => t.name === name && t.status === "succeeded"))
+      throw new Error("Missing successful audited tool: " + name);
+  if (
+    !observations.some((t) => JSON.stringify(t.input).includes("BRIDGE_START"))
+  )
+    throw new Error("Write content absent from audit");
+  if (
+    !observations.some(
+      (t) =>
+        t.name === "Bash" &&
+        JSON.stringify(t.output).includes("AUDIT_SHELL_OK"),
+    )
+  )
+    throw new Error("Shell output absent from audit");
+  const audit = service.store.audit(job.id, owner, { includePayloads: "true" });
+  if (audit.summary.changedFiles < 2)
+    throw new Error(
+      "Reported file changes missing: " +
+        JSON.stringify(
+          observations.map((t) => ({
+            name: t.name,
+            status: t.status,
+            file: t.file,
+          })),
+        ),
+    );
+  const childTools = service.store.tools(child.id, owner, {}).tools;
+  if (!childTools.some((t) => t.name === "Agent"))
+    throw new Error("Agent invocation missing from audit");
+  if (
+    !childTools.some(
+      (t) => t.name === "Read" && t.parentToolUseId && t.status === "succeeded",
+    )
+  )
+    throw new Error(
+      "Nested subagent tool observation missing: " +
+        JSON.stringify(
+          childTools.map((t) => ({
+            name: t.name,
+            parent: t.parentToolUseId,
+            status: t.status,
+          })),
+        ),
+    );
   const evidence = {
+    nestedSubagentTool: true,
+    completeToolPayloads: true,
+    reportedFileChanges: audit.summary.changedFiles,
+    auditedTools: observations.map((t) => ({
+      name: t.name,
+      status: t.status,
+      hasInput: t.input !== undefined,
+      hasOutput: t.output !== undefined,
+    })),
     testedAt: new Date().toISOString(),
     cliPath: config.claudePath,
     nativeBypass: true,

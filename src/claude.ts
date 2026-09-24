@@ -16,6 +16,7 @@
  * limitations under the License.
  */
 
+import { nativeToolObservations } from "./audit.js";
 import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import type { Outcome } from "./contracts.js";
@@ -229,6 +230,7 @@ export class ClaudeWorker implements Worker {
             };
             errors?: string[];
             session_id?: string;
+            parent_tool_use_id?: string | null;
             status?: string | null;
             compact_result?: string;
             compact_metadata?: Record<string, unknown>;
@@ -245,6 +247,7 @@ export class ClaudeWorker implements Worker {
             message?: { content?: { type: string; text?: string }[] };
           };
           if (
+            !message.parent_tool_use_id &&
             message.session_id &&
             /^[0-9a-f-]{36}$/i.test(message.session_id) &&
             message.session_id !== sessionId
@@ -256,6 +259,9 @@ export class ClaudeWorker implements Worker {
               data: { sessionId },
             });
           }
+          if (!input.job.completion)
+            for (const tool of nativeToolObservations(message))
+              emit({ kind: "tool", text: "Tool activity observed", tool });
           if (message.type === "rate_limit_event") {
             const info = message.rate_limit_info ?? {};
             emit({
@@ -318,7 +324,7 @@ export class ClaudeWorker implements Worker {
             }
           }
           if (message.error === "rate_limit") quota = true;
-          if (message.type === "result") {
+          if (message.type === "result" && !message.parent_tool_use_id) {
             if (
               input.job.completion &&
               message.subtype === "success" &&

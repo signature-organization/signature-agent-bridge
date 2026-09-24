@@ -18,6 +18,7 @@
 
 import { DatabaseSync } from "node:sqlite";
 import { createHash, randomUUID } from "node:crypto";
+import { AuditLog, type AuditQuery, type ToolsQuery } from "./audit.js";
 import { migrate } from "./migrations.js";
 import type { WorkerEvent } from "./worker.js";
 import {
@@ -35,6 +36,7 @@ const system: Principal = { id: "system", owner: true, profiles: [] };
 const stamp = () => new Date().toISOString();
 export class QueueStore {
   readonly db: DatabaseSync;
+  private auditLog: AuditLog;
   private depth = 0;
   private closed = false;
   constructor(
@@ -44,6 +46,7 @@ export class QueueStore {
     this.db = new DatabaseSync(path);
     try {
       migrate(this.db);
+      this.auditLog = new AuditLog(this.db);
     } catch (error) {
       this.db.close();
       throw error;
@@ -70,7 +73,8 @@ export class QueueStore {
       .prepare("UPDATE jobs SET status=?,data=? WHERE id=?")
       .run(job.status, JSON.stringify(job), job.id);
   }
-  addEvent(job: Job, type: string, data: unknown): void {
+  addEvent(job: Job, type: string, data: unknown, attemptId?: string): void {
+    this.auditLog.lifecycle(job, type, data, attemptId);
     this.db
       .prepare(
         "INSERT INTO events(principal_id,job_id,type,data,created_at) VALUES(?,?,?,?,?)",
@@ -169,7 +173,8 @@ export class QueueStore {
         this.db
           .prepare("INSERT INTO jobs VALUES(?,?,?,?,?)")
           .run(job.id, p.id, job.mode, job.status, JSON.stringify(job));
-        this.addEvent(job, "job.queued", { status: job.status });
+        this.addEvent(job, "job.queued", { status: job.status, actor: p.id });
+        this.auditLog.clientHistory(job);
         return job;
       },
       (id) => this.get(id, p),
@@ -238,7 +243,7 @@ export class QueueStore {
       this.db
         .prepare("INSERT INTO attempts VALUES(?,?,?)")
         .run(attempt.id, job.id, JSON.stringify(attempt));
-      this.addEvent(job, "job.running", { status: job.status });
+      this.addEvent(job, "job.running", { status: job.status }, attempt.id);
       return attempt;
     });
   }
@@ -270,6 +275,16 @@ export class QueueStore {
   observe(attempt: Attempt, event: WorkerEvent): void {
     this.atomic(() => {
       const job = this.validateAttempt(attempt);
+      if (event.kind === "tool") {
+        if (event.tool && this.auditLog.observe(job, attempt, event.tool))
+          this.addEvent(
+            job,
+            "job.tool",
+            { toolId: event.tool.toolId, phase: event.tool.phase },
+            attempt.id,
+          );
+        return;
+      }
       const data = event.data ?? {};
       if (event.kind === "session" && typeof data.sessionId === "string")
         job.sessionId = data.sessionId;
@@ -292,6 +307,7 @@ export class QueueStore {
         job,
         event.kind === "output" ? "job.progress" : "job." + event.kind,
         { text: event.text, ...data },
+        attempt.id,
       );
     });
   }
@@ -303,7 +319,10 @@ export class QueueStore {
       else return job;
       job.error = "operator_pause";
       this.save(job);
-      this.addEvent(job, "job." + job.status, { reason: job.error });
+      this.addEvent(job, "job." + job.status, {
+        reason: job.error,
+        actor: p.id,
+      });
       return job;
     });
   }
@@ -334,7 +353,10 @@ export class QueueStore {
       delete job.error;
       delete job.retryAt;
       this.save(job);
-      this.addEvent(job, "job.resumed", { sessionId: job.sessionId });
+      this.addEvent(job, "job.resumed", {
+        sessionId: job.sessionId,
+        actor: p.id,
+      });
       return job;
     });
   }
@@ -350,7 +372,10 @@ export class QueueStore {
           "Cancellation requires reconciliation",
           409,
         );
+      this.auditLog.closeAttempt(job, attempt);
       Object.assign(job, outcome);
+      if (outcome.status === "succeeded")
+        this.auditLog.clientResult(job, attempt);
       job.activity = outcome.status;
       if (outcome.status === "succeeded") {
         job.resumePending = false;
@@ -384,10 +409,15 @@ export class QueueStore {
         }),
         attempt.id,
       );
-      this.addEvent(job, "job." + outcome.status, {
-        status: outcome.status,
-        error: outcome.error,
-      });
+      this.addEvent(
+        job,
+        "job." + outcome.status,
+        {
+          status: outcome.status,
+          error: outcome.error,
+        },
+        attempt.id,
+      );
       if (job.status === "queued")
         this.addEvent(job, "job.queued", { followUp: true });
     });
@@ -401,7 +431,10 @@ export class QueueStore {
         ? "canceled"
         : "cancel_requested";
       this.save(job);
-      this.addEvent(job, "job." + job.status, { status: job.status });
+      this.addEvent(job, "job." + job.status, {
+        status: job.status,
+        actor: p.id,
+      });
       return job;
     });
   }
@@ -426,7 +459,7 @@ export class QueueStore {
       delete job.resumedTurns;
       delete job.retryAt;
       this.save(job);
-      this.addEvent(job, "job.queued", { retry: true });
+      this.addEvent(job, "job.queued", { retry: true, actor: p.id });
       return job;
     });
   }
@@ -490,7 +523,11 @@ export class QueueStore {
           delete job.error;
         }
         this.save(job);
-        this.addEvent(job, "job.message", { message, queued: true });
+        this.addEvent(job, "job.message", {
+          message,
+          queued: true,
+          actor: p.id,
+        });
         return job;
       },
       (resourceId) => this.get(resourceId, p),
@@ -513,6 +550,15 @@ export class QueueStore {
       }
       return n;
     });
+  }
+  audit(id: string, p: Principal, query: AuditQuery) {
+    return this.auditLog.page(this.get(id, p), query);
+  }
+  tool(id: string, toolId: number, p: Principal) {
+    return this.auditLog.tool(this.get(id, p), toolId);
+  }
+  tools(id: string, p: Principal, query: ToolsQuery) {
+    return this.auditLog.tools(this.get(id, p), query);
   }
   attempts(id: string, p: Principal): Attempt[] {
     this.get(id, p);

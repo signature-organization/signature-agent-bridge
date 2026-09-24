@@ -66,6 +66,35 @@ function input(prompt: string) {
   return { job, attempt, cwd: dir };
 }
 describe("official CLI boundary", () => {
+  it("emits nested native tool requests and results from streamed messages", async () => {
+    const tools: unknown[] = [];
+    const sessions: string[] = [];
+    const outcome = await worker().run(
+      input("fixture:tools"),
+      (e) => {
+        if (e.kind === "tool") tools.push(e.tool);
+        if (e.kind === "session") sessions.push(String(e.data?.sessionId));
+      },
+      new AbortController().signal,
+    );
+    expect(outcome.status).toBe("succeeded");
+    expect(sessions).toEqual(["11111111-1111-4111-8111-111111111111"]);
+    expect(tools).toEqual([
+      expect.objectContaining({
+        toolId: "native-write",
+        phase: "requested",
+        parentToolUseId: "agent-parent",
+        file: { path: "notes.md", operation: "write" },
+      }),
+      expect.objectContaining({
+        toolId: "native-write",
+        phase: "succeeded",
+        parentToolUseId: "agent-parent",
+      }),
+    ]);
+    expect(JSON.stringify(tools)).toContain("PRIVATE_CONTENT");
+    expect(JSON.stringify(tools)).toContain("PRIVATE_RESULT");
+  });
   it("runs completion jobs without native tools or agents and persists structured output and observed usage", async () => {
     const execution = input("completion");
     execution.job.completion = prepareCompletion({

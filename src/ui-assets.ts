@@ -23,6 +23,7 @@ const directory = fileURLToPath(new URL("./ui/", import.meta.url));
 export const uiAssets = {
   html: readFileSync(directory + "index.html", "utf8"),
   css: readFileSync(directory + "app.css", "utf8"),
+  auditJs: readFileSync(directory + "audit.js", "utf8"),
   js: readFileSync(directory + "app.js", "utf8"),
   brand: readFileSync(
     fileURLToPath(new URL("../assets/logo.png", import.meta.url)),

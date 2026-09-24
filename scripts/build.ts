@@ -30,6 +30,7 @@ mkdirSync("dist", { recursive: true });
 const uiAssets = {
   html: readFileSync("src/ui/index.html", "utf8"),
   css: readFileSync("src/ui/app.css", "utf8"),
+  auditJs: readFileSync("src/ui/audit.js", "utf8"),
   js: readFileSync("src/ui/app.js", "utf8"),
   brand: readFileSync("assets/logo.png").toString("base64"),
 };

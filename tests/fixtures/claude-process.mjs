@@ -53,6 +53,45 @@ if (process.argv.includes("--json-schema")) {
       },
     }),
   );
+} else if (prompt === "fixture:tools") {
+  for (const message of [
+    {
+      type: "system",
+      subtype: "init",
+      session_id: "11111111-1111-4111-8111-111111111111",
+    },
+    {
+      type: "assistant",
+      parent_tool_use_id: "agent-parent",
+      session_id: "22222222-2222-4222-8222-222222222222",
+      message: {
+        content: [
+          {
+            type: "tool_use",
+            id: "native-write",
+            name: "Write",
+            input: { file_path: "notes.md", content: "PRIVATE_CONTENT" },
+          },
+        ],
+      },
+    },
+    {
+      type: "user",
+      parent_tool_use_id: "agent-parent",
+      session_id: "22222222-2222-4222-8222-222222222222",
+      message: {
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "native-write",
+            content: "PRIVATE_RESULT",
+          },
+        ],
+      },
+    },
+    { type: "result", subtype: "success", is_error: false, result: "done" },
+  ])
+    console.log(JSON.stringify(message));
 } else if (prompt === "fixture:events") {
   for (const message of [
     {

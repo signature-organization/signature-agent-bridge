@@ -18,6 +18,18 @@ Select a row to inspect messages, attempts, session continuity, and reported chi
 
 Pause, resume, cancel, and retry are shown according to the job's state. Retry is explicitly different from resume: it starts a new session and can repeat prior effects.
 
+## Tool activity, files, and audit
+
+Each job has **Conversation**, **Activity**, and **Files** tabs. Activity exposes complete emitted tool inputs and outputs, including shell commands and stdout/stderr. Files exposes known targets, returned or submitted content, and available before/after edit fragments. Expand **Raw input, result, and correlation** for the underlying observation.
+
+![Tool inspector](../assets/screenshots/activity-desktop.png)
+
+![File targets and a replacement diff](../assets/screenshots/files-desktop.png)
+
+The audit log retains tool and lifecycle observations across service restarts and SSE retention. **Export audit** downloads a consistent JSON snapshot, including full payloads. Failed or interrupted actions remain clearly labeled; the console does not claim to observe every indirect filesystem effect. See [audit coverage, access, and export](audit.md).
+
+[Mobile activity](../assets/screenshots/activity-mobile.png) · [Mobile file details](../assets/screenshots/files-mobile.png)
+
 ## Chat Completions
 
 SDK requests and console-created completions appear in the same queue. Select one to inspect its submitted message history, validated answer or client function requests, observed token usage, and execution attempts. The inference view hides native follow-up controls because the calling application supplies complete history for its next model turn.

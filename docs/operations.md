@@ -53,6 +53,8 @@ A startup recovery marks attempts with lost ownership interrupted; it does not a
 
 Database atomicity is not an exactly-once guarantee for external effects. A tool may have written a file, sent a request, or changed a remote system before its result was lost. Review the workspace and external state before retrying.
 
+Inspect the job's **Activity** and **Files** tabs before retrying. Tool results, full payloads, and known file targets remain in the [durable audit](audit.md). A missing result is **Outcome unknown**, even if the tool may have completed its side effect.
+
 ## Host lifecycle
 
 MCP adapters renew host leases every two seconds. A channel claim whose host lease expires is interrupted. A notification does not claim work and never completes a job by itself.
@@ -65,9 +67,9 @@ Use `stop` for graceful shutdown. Active CLI work is paused and child processes 
 
 The data directory contains `config.json`, `queue.sqlite`, `owner.token`, a discovery file, and service logs. Job workspaces are under the configured workspace directory. Native Claude transcripts remain in Claude's own storage.
 
-The service retains the latest 10,000 event sequence IDs. Jobs, messages, attempts, and workflow snapshots remain durable. Monitor disk usage and archive data deliberately; this release does not silently delete job history.
+The service retains the latest 10,000 event sequence IDs. Jobs, messages, attempts, workflow snapshots, and full execution audits remain durable. Monitor disk usage and archive data deliberately; this release does not silently delete job history.
 
-Stop the service before making a filesystem backup of SQLite and its sidecars. Protect backups as user data: prompts, results, and bridge authentication material can be sensitive. To restore, keep the configuration's absolute paths consistent with the restored data directory.
+Stop the service before making a filesystem backup of SQLite and its sidecars. Protect backups as user data: prompts, results, full file contents, shell commands/output, and bridge authentication material can be sensitive. To restore, keep the configuration's absolute paths consistent with the restored data directory.
 
 ## Native protocol references
 

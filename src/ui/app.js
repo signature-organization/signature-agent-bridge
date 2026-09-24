@@ -16,6 +16,8 @@
  * limitations under the License.
  */
 
+import { createAuditPanel } from "./audit.js";
+
 /* All rendered task content uses textContent: prompts and Claude output are untrusted data. */
 const el = (id) => document.getElementById(id);
 let token = "",
@@ -27,7 +29,8 @@ let token = "",
   refreshing = false;
 let templates = [],
   loadedPages = 1,
-  selectionRevision = 0;
+  selectionRevision = 0,
+  attemptsSnapshot;
 const hostId = crypto.randomUUID(),
   seenEvents = new Set();
 const text = (id, value) => {
@@ -139,10 +142,16 @@ function completionResult(raw) {
     return raw;
   }
 }
-async function selectJob(id) {
+const auditPanel = createAuditPanel(api, notice);
+async function selectJob(id, loadedJob) {
+  if (selected !== id) {
+    auditPanel.begin(id);
+    attemptsSnapshot = undefined;
+    el("job-detail").hidden = true;
+  }
   selected = id;
   const revision = ++selectionRevision;
-  const job = await api("/jobs/" + id);
+  const job = loadedJob ?? (await api("/jobs/" + id));
   if (revision !== selectionRevision) return;
   el("selection-empty").hidden = true;
   el("job-detail").hidden = false;
@@ -237,8 +246,15 @@ async function selectJob(id) {
     li.textContent = "No child tasks reported.";
     el("subagents").append(li);
   }
-  const attempts = await api("/jobs/" + id + "/attempts");
+  // The list already contains current job state. Reuse unchanged attempt history so polling
+  // and navigation do not spend the principal's request budget fetching identical resources.
+  const attemptKey = id + ":" + job.updatedAt + ":" + job.status;
+  const attempts =
+    attemptsSnapshot?.key === attemptKey
+      ? attemptsSnapshot.value
+      : await api("/jobs/" + id + "/attempts");
   if (revision !== selectionRevision) return;
+  attemptsSnapshot = { key: attemptKey, value: attempts };
   text(
     "attempts",
     JSON.stringify(
@@ -253,6 +269,7 @@ async function selectJob(id) {
       2,
     ),
   );
+  await auditPanel.select(job);
   renderJobs();
 }
 async function renderWorkflows() {
@@ -503,7 +520,11 @@ async function refresh() {
     jobs = refreshed;
     cursor = after;
     renderJobs();
-    if (selected) await selectJob(selected);
+    if (selected)
+      await selectJob(
+        selected,
+        jobs.find((job) => job.id === selected),
+      );
     if (!el("workflows-view").hidden) await renderWorkflows();
     if (!el("diagnostics-view").hidden) await renderTokens();
   } catch (e) {

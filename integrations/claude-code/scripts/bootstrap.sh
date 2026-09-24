@@ -17,7 +17,7 @@
 #
 set -euo pipefail
 version="0.1.0"
-build="api-1"
+build="audit-1"
 repository="signature-organization/signature-agent-bridge"
 case "$(uname -s)" in
   Darwin) platform="darwin"; cache="${HOME}/Library/Caches/SignatureAgentBridge" ;;
